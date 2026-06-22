@@ -316,7 +316,21 @@ const STAGE_NAMES = ["8es", "Quarts", "Demies", "Finale", "Champion"];
 // ====== CONFIG SUPABASE ======
 const SUPABASE_URL = "https://zufqjwqpbbvkhvpsrbtw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_yxU9ZpxADGFlPh0jeTvKsA_kYuUjmrJ";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let sb = null;
+try {
+  if(!window.supabase || !window.supabase.createClient){
+    throw new Error("Le composant Supabase n'a pas pu se charger (connexion internet ou bloqueur ?).");
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e){
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.body.innerHTML = '<div style="max-width:480px;margin:80px auto;padding:24px;'
+      +'font-family:sans-serif;color:#eef4fa;background:#0f2032;border-radius:14px;text-align:center">'
+      +'<h2 style="margin-bottom:10px">Souci de chargement</h2>'
+      +'<p style="color:#8fa6bb;line-height:1.5">'+e.message+'</p>'
+      +'<p style="color:#8fa6bb;margin-top:14px;font-size:14px">Réessaie en rechargeant la page (Ctrl+Maj+R).</p></div>';
+  });
+}
 
 // ====== ÉTAT GLOBAL ======
 let nickname   = localStorage.getItem("mcm_nick") || "";
@@ -571,21 +585,27 @@ function showPseudoGate(){
 
 // ====== DÉMARRAGE ======
 async function start(){
-  await loadTournament();
-  await loadVotes();
-  render();
-  tick();
-  // rafraîchissement périodique des scores en direct
-  setInterval(async ()=>{ await loadVotes(); render(); }, 8000);
-  setInterval(tick, 1000);
+  try {
+    await loadTournament();
+    await loadVotes();
+    render();
+    tick();
+    setInterval(async ()=>{ try{ await loadVotes(); render(); }catch(e){} }, 8000);
+    setInterval(tick, 1000);
+  } catch(e){
+    arena.innerHTML = '<div style="padding:20px;text-align:center;color:#8fa6bb">'
+      +'Impossible de charger les votes pour le moment.<br>'+(e.message||e)+'</div>';
+  }
 }
 
-// init
-if(nickname){
-  document.getElementById('pseudoGate').classList.add('hidden');
-  start();
-} else {
-  showPseudoGate();
+// init (seulement si le client Supabase est prêt)
+if(sb){
+  if(nickname){
+    document.getElementById('pseudoGate').classList.add('hidden');
+    start();
+  } else {
+    showPseudoGate();
+  }
 }
 </script>
 </body>
