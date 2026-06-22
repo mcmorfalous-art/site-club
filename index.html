@@ -50,7 +50,8 @@ body{
   font-family:'Archivo Black',sans-serif;font-size:24px;
   text-transform:uppercase;letter-spacing:-.01em;margin-bottom:8px;
 }
-.pseudo-sub{color:var(--bone-dim);font-size:14px;margin-bottom:20px;line-height:1.4}
+.pseudo-sub{color:var(--bone-dim);font-size:14px;margin-bottom:20px;line-height:1.5}
+.pseudo-sub b{color:var(--cyan)}
 .pseudo-input{
   width:100%;padding:13px 16px;border-radius:11px;
   background:var(--night);border:1.5px solid var(--line2);
@@ -235,8 +236,8 @@ footer{
 <div id="pseudoGate" class="pseudo-gate">
   <div class="pseudo-card">
     <div class="pseudo-title">Avant de voter</div>
-    <p class="pseudo-sub">Entre ton pseudo de pilote pour participer au vote.</p>
-    <input id="pseudoInput" class="pseudo-input" type="text" maxlength="40" placeholder="Ton pseudo / prénom" autocomplete="off">
+    <p class="pseudo-sub">Entre ton <b>prénom + numéro de course</b> (ex. Mathieu 117).<br>Garde le même à chaque visite pour retrouver tes votes.</p>
+    <input id="pseudoInput" class="pseudo-input" type="text" maxlength="40" placeholder="Ex. Mathieu 117" autocomplete="off">
     <button id="pseudoBtn" class="pseudo-btn">Entrer dans la coupe</button>
     <div id="pseudoErr" class="pseudo-err"></div>
   </div>
@@ -282,16 +283,16 @@ const LOGOS = {
 
 // ---- TERRAINS PROPOSÉS (lieux à privatiser) — seeds tirées au sort au 1er lancement ----
 const CIRCUITS = shuffleSeeds([
-  {id:1,  name:"Dompierre",     desc:"Motoclub de Dompierre"},
-  {id:2,  name:"Apremont",      desc:"Secteur Celles-sur-Belle"},
+  {id:1,  name:"Dompierre",     desc:"Dompierre-sur-Mer"},
+  {id:2,  name:"Apremont",      desc:"Vendée"},
   {id:3,  name:"Les Herbiers",  desc:"Vendée"},
   {id:4,  name:"Chaillé",       desc:"Chaillé-sous-les-Ormeaux"},
   {id:5,  name:"Celles/Belle",  desc:"Celles-sur-Belle"},
   {id:6,  name:"Nozay",         desc:"Loire-Atlantique"},
   {id:7,  name:"Ernée",         desc:"Mayenne"},
   {id:8,  name:"St-Estèphe",    desc:"Saint-Estèphe"},
-  {id:9,  name:"Lucas Oil",     desc:"Bike parc"},
-  {id:10, name:"Beauvoisin",    desc:"Bike parc"},
+  {id:9,  name:"Lucas Bike Park", desc:"Savignac/Leyze"},
+  {id:10, name:"Beauxvoisin",   desc:"MC des Costières"},
   {id:11, name:"Dorno",         desc:"Italie"},
   {id:12, name:"Washougal",     desc:"AMA · USA"},
   {id:13, name:"RedBud",        desc:"AMA · USA"},
@@ -363,6 +364,14 @@ function seedOrder(n){
 
 // ====== TIMING : quel round est ouvert aujourd'hui ======
 function roundHoursMs(){ return (tournament?.round_hours || 48) * 3600000; }
+// le tournoi a-t-il commencé ? (started_at peut être dans le futur)
+function notStartedYet(){
+  if(!tournament) return false;
+  return Date.now() < new Date(tournament.started_at).getTime();
+}
+function msUntilStart(){
+  return new Date(tournament.started_at).getTime() - Date.now();
+}
 function elapsedRounds(){
   if(!tournament) return 0;
   const start = new Date(tournament.started_at).getTime();
@@ -472,6 +481,19 @@ function renderDuel(d, i, stage){
 
 function render(){
   const rounds = resolveRounds();
+
+  // pas encore commencé : écran d'attente avec compte à rebours jusqu'au lancement
+  if(notStartedYet()){
+    stageRail.innerHTML = STAGE_NAMES.map((nm,i)=>`<span class="${i===0?'now':''}">${nm}</span>`).join('');
+    roundLabel.innerHTML = `Round <b>à venir</b>`;
+    arena.innerHTML = `<div class="champion">
+      <div class="crown">⏳ Ouverture des votes</div>
+      <div class="name" id="countdownStart" style="font-size:clamp(26px,7vw,42px)">—</div>
+      <div class="sub">Le vote ouvre mardi 23/06 à 12h00. Reviens à ce moment-là !</div>
+    </div>`;
+    return;
+  }
+
   const finished = tournamentFinished();
   const stage = finished ? STAGE_NAMES.length-1 : currentRoundIdx();
 
@@ -553,15 +575,28 @@ async function loadVotes(){
 }
 
 // ====== TIMER ======
+function fmt(ms){
+  const h=String(Math.floor(ms/3600000)).padStart(2,'0');
+  const m=String(Math.floor(ms%3600000/60000)).padStart(2,'0');
+  const s=String(Math.floor(ms%60000/1000)).padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
 function tick(){
   if(!tournament) return;
   const el = document.getElementById('timer');
+
+  // pas encore commencé : compte à rebours jusqu'au lancement
+  if(notStartedYet()){
+    const left = msUntilStart();
+    const days = Math.floor(left/86400000);
+    const big = document.getElementById('countdownStart');
+    if(big) big.textContent = (days>0?days+"j ":"") + fmt(left%86400000);
+    if(el) el.textContent = "vote pas encore ouvert";
+    return;
+  }
+
   if(tournamentFinished()){ el.textContent = "coupe terminée"; return; }
-  const left = msUntilNextRound();
-  const h=String(Math.floor(left/3600000)).padStart(2,'0');
-  const m=String(Math.floor(left%3600000/60000)).padStart(2,'0');
-  const s=String(Math.floor(left%60000/1000)).padStart(2,'0');
-  el.textContent = `${h}:${m}:${s} avant rotation`;
+  el.textContent = `${fmt(msUntilNextRound())} avant rotation`;
 }
 
 // ====== ÉCRAN PSEUDO ======
@@ -590,7 +625,7 @@ async function start(){
     await loadVotes();
     render();
     tick();
-    setInterval(async ()=>{ try{ await loadVotes(); render(); }catch(e){} }, 8000);
+    setInterval(async ()=>{ try{ await loadVotes(); render(); tick(); }catch(e){} }, 8000);
     setInterval(tick, 1000);
   } catch(e){
     arena.innerHTML = '<div style="padding:20px;text-align:center;color:#8fa6bb">'
