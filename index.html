@@ -360,7 +360,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="eyebrow">Compétition</div>
   <h1 class="title">Résultats</h1>
   <p class="lead" style="margin-bottom:28px">Les performances de nos pilotes, par catégorie.</p>
-  <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openResultatForm()">+ Ajouter un résultat</button>
+  <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openCourseForm()">+ Nouvelle course</button>
   <div id="resultatsList"><div class="loading">Chargement…</div></div>
 </section>
 
@@ -447,6 +447,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button onclick="adminTab('inscriptions',this)">Inscriptions</button>
     <button onclick="adminTab('soumissions',this)">Idées reçues</button>
     <button onclick="adminTab('categories',this)">Catégories</button>
+    <button onclick="adminTab('respartenaires',this)">Part. résultats</button>
     <button onclick="adminTab('liens',this)">Liens</button>
     <button onclick="adminTab('admins',this)">Bureau</button>
   </div>
@@ -766,156 +767,183 @@ async function loadLicence(){
   const {data}=await sb.from('pages').select('*').eq('slug','prise-licence').maybeSingle();
   $('#licenceContent').innerHTML=data?`${data.image_url?`<img src="${esc(data.image_url)}" style="border-radius:8px;margin-bottom:20px" alt="">`:''}<div style="white-space:pre-wrap;line-height:1.8">${esc(data.contenu||'')}</div>`:emptyState("Infos licence à venir. Contacte le bureau !");
 }
-/* ============ RÉSULTATS (affichage + générateur d'image) ============ */
+/* ============ RÉSULTATS (courses → catégories → générateur) ============ */
 async function loadResultats(){
-  const {data}=await sb.from('resultats').select('*').order('date_course',{ascending:false});
-  if(!data?.length){$('#resultatsList').innerHTML=emptyState('Aucun résultat publié.');return;}
-  // grouper par course (course_nom + date + lieu)
-  const groups={};
-  data.forEach(r=>{
-    const key=`${r.course_nom}||${r.date_course||''}||${r.lieu||''}`;
-    (groups[key]=groups[key]||[]).push(r);
-  });
+  const {data:courses}=await sb.from('resultats_courses').select('*').order('date_course',{ascending:false});
+  if(!courses?.length){$('#resultatsList').innerHTML=emptyState('Aucun résultat publié.');return;}
   let html='';
-  Object.entries(groups).forEach(([key,rows])=>{
-    const [nom,date,lieu]=key.split('||');
-    html+=`<div class="card" style="margin-bottom:18px">
-      <div class="card-body">
-        <span class="card-date">${date?fmtDate(date):''}${lieu?' · '+esc(lieu):''}</span>
-        <h3>${esc(nom)}</h3>
-        <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px">`;
-    rows.forEach(r=>{
-      const cl=Array.isArray(r.classement)?r.classement:[];
+  for(const co of courses){
+    const {data:cats}=await sb.from('resultats_categories').select('*').eq('course_id',co.id).order('ordre');
+    html+=`<div class="card" style="margin-bottom:18px"><div class="card-body">
+      <span class="card-date">${co.date_course?fmtDate(co.date_course):''}${co.lieu?' · '+esc(co.lieu):''}</span>
+      <h3>${esc(co.evenement)}${co.saison?' '+esc(co.saison):''}</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+        <button class="btn btn-primary btn-sm" onclick="openResultImages('${co.id}')">📸 Générer les images</button>
+        <button class="btn btn-ghost btn-sm admin-only" onclick="openCourseForm('${co.id}')">✎ Course</button>
+        <button class="btn btn-ghost btn-sm admin-only" onclick="openCatForm(null,'${co.id}')">+ Catégorie</button>
+        <button class="btn btn-danger btn-sm admin-only" onclick="delRow('resultats_courses','${co.id}','resultats')">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">`;
+    (cats||[]).forEach(cat=>{
+      const cl=Array.isArray(cat.classement)?cat.classement.slice().sort((a,b)=>a.place-b.place):[];
       html+=`<div style="border-top:1px solid var(--line);padding-top:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <span class="tag course">${esc(r.categorie||'')}</span>
+          <span class="tag course">${esc(cat.nom)}</span>
           <div class="row-actions">
-            <button class="btn btn-primary btn-sm" onclick="openResultImage('${r.id}')">📸 Image</button>
-            <button class="btn btn-ghost btn-sm admin-only" onclick="openResultatForm('${r.id}')">✎</button>
-            <button class="btn btn-danger btn-sm admin-only" onclick="delRow('resultats','${r.id}','resultats')">✕</button>
+            <button class="btn btn-ghost btn-sm admin-only" onclick="openCatForm('${cat.id}','${co.id}')">✎</button>
+            <button class="btn btn-danger btn-sm admin-only" onclick="delRow('resultats_categories','${cat.id}','resultats')">✕</button>
           </div>
         </div>
-        <div style="margin-top:8px">${cl.map(p=>`<div style="display:flex;gap:10px;padding:3px 0;color:var(--ink-dim)"><span style="color:var(--accent);font-family:var(--font-disp);font-weight:700;width:28px">${p.pos}</span><span style="color:var(--ink)">${esc(p.nom)}</span>${p.num?`<span style="margin-left:auto;font-size:.85rem;color:var(--ink-dim)">#${esc(p.num)}</span>`:''}</div>`).join('')}</div>
-        ${r.lien?`<a class="btn btn-ghost btn-sm" style="margin-top:8px" href="${esc(r.lien)}" target="_blank" rel="noopener">Résultats détaillés ↗</a>`:''}
+        <div style="margin-top:8px">${cl.map(p=>`<div style="display:flex;gap:10px;padding:3px 0"><span style="color:var(--accent);font-family:var(--font-disp);font-weight:700;width:34px">${p.place}${ordinal(p.place)}</span><span style="color:var(--ink)">${esc(p.nom)}</span>${p.num?`<span style="margin-left:auto;font-size:.85rem;color:var(--ink-dim)">#${esc(p.num)}</span>`:''}</div>`).join('')||'<span style="color:var(--ink-dim);font-size:.9rem">Aucun pilote</span>'}</div>
       </div>`;
     });
+    if(!cats?.length)html+='<span style="color:var(--ink-dim);font-size:.9rem">Aucune catégorie. Ajoute-en une.</span>';
     html+=`</div></div></div>`;
-  });
+  }
   $('#resultatsList').innerHTML=html;
 }
+function ordinal(n){return n==1?'er':'e';}
 
-/* -------- Générateur d'image (canvas) -------- */
-const IMG_FORMATS={
-  story:{w:1080,h:1920,label:'Story (vertical)'},
-  post:{w:1080,h:1080,label:'Post carré'}
-};
-async function openResultImage(id){
-  const {data:r}=await sb.from('resultats').select('*').eq('id',id).single();
-  if(!r)return;
-  openModal('Image de résultats',`
-    <div class="subtabs" style="margin-bottom:16px">
-      <button class="active" id="fmt-story" onclick="genResultImage('${id}','story',this)">Story</button>
-      <button id="fmt-post" onclick="genResultImage('${id}','post',this)">Post carré</button>
-    </div>
-    <div class="res-preview-wrap">
-      <canvas id="resCanvas" class="res-canvas"></canvas>
-      <button class="btn btn-primary" onclick="downloadResult('${esc(r.course_nom)}-${esc(r.categorie||'')}')">📥 Télécharger l'image</button>
-    </div>`);
-  // charger le logo puis rendre
-  await ensureLogoLoaded();
-  genResultImage(id,'story');
-}
+/* -------- Générateur d'images (couverture + 1 par catégorie) -------- */
+const IMG_FORMATS={story:{w:1080,h:1920},post:{w:1080,h:1080}};
+let _genState=null; // {course, cats, partenaires, fmt, withParts, index}
+let _logoImg=null, _partImgs=[];
 
-let _logoImg=null;
 function ensureLogoLoaded(){
   return new Promise(res=>{
     if(_logoImg){res();return;}
-    const img=new Image();
-    img.onload=()=>{_logoImg=img;res();};
-    img.onerror=()=>{res();};
+    const img=new Image();img.crossOrigin='anonymous';
+    img.onload=()=>{_logoImg=img;res();};img.onerror=()=>res();
     img.src=LOGO_DATA;
   });
 }
-let _lastResult=null;
-async function genResultImage(id,fmt,btn){
-  if(btn){$$('#fmt-story,#fmt-post').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
-  let r=_lastResult&&_lastResult.id===id?_lastResult:null;
-  if(!r){const {data}=await sb.from('resultats').select('*').eq('id',id).single();r=data;_lastResult=r;}
-  drawResult(r,fmt);
+function loadImg(src){
+  return new Promise(res=>{
+    const img=new Image();img.crossOrigin='anonymous';
+    img.onload=()=>res(img);img.onerror=()=>res(null);
+    img.src=src;
+  });
 }
-function drawResult(r,fmt){
-  const F=IMG_FORMATS[fmt], cv=$('#resCanvas'); if(!cv)return;
-  cv.width=F.w; cv.height=F.h;
-  const ctx=cv.getContext('2d');
-  const W=F.w,H=F.h, story=fmt==='story';
-  // fond dégradé
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#102f42'); g.addColorStop(1,'#0a1a24');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  // bande rubalise haut
-  const bar=14; ctx.save();
-  for(let x=-H;x<W+H;x+=bar*2){ctx.fillStyle='#5cc6e8';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+bar,0);ctx.lineTo(x+bar-40,40);ctx.lineTo(x-40,40);ctx.closePath();ctx.fill();}
-  ctx.restore();
-  const cx=W/2;
-  let y=story?150:90;
-  // logo
-  if(_logoImg){const ls=story?190:150;ctx.save();ctx.beginPath();ctx.arc(cx,y+ls/2,ls/2,0,Math.PI*2);ctx.closePath();ctx.clip();ctx.drawImage(_logoImg,cx-ls/2,y,ls,ls);ctx.restore();ctx.strokeStyle='#5cc6e8';ctx.lineWidth=6;ctx.beginPath();ctx.arc(cx,y+ls/2,ls/2,0,Math.PI*2);ctx.stroke();y+=ls+40;}
-  // titre club
-  ctx.textAlign='center';ctx.fillStyle='#f1f7fa';
-  ctx.font=`900 ${story?64:52}px 'Saira Condensed',sans-serif`;
-  ctx.fillText('MC LES MORFALOUS',cx,y); y+=story?70:56;
-  ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?34:28}px 'Saira Condensed',sans-serif`;
-  ctx.fillText('RÉSULTATS',cx,y); y+=story?90:64;
-  // course
-  ctx.fillStyle='#f1f7fa';ctx.font=`800 ${story?52:42}px 'Saira Condensed',sans-serif`;
-  wrapText(ctx,(r.course_nom||'').toUpperCase(),cx,y,W-140,story?58:48); y+=story?64:52;
-  ctx.fillStyle='#9fb8c4';ctx.font=`400 ${story?30:26}px Inter,sans-serif`;
-  const sub=[r.lieu,r.date_course?fmtDate(r.date_course):''].filter(Boolean).join(' · ');
-  if(sub){ctx.fillText(sub,cx,y);y+=story?60:48;}
-  // catégorie badge
-  const cat=(r.categorie||'').toUpperCase();
-  if(cat){ctx.font=`700 ${story?36:30}px 'Saira Condensed',sans-serif`;const tw=ctx.measureText(cat).width;const pad=28,bh=story?58:48;ctx.fillStyle='#e8472e';roundRect(ctx,cx-tw/2-pad,y-bh+14,tw+pad*2,bh,8);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(cat,cx,y);y+=story?90:70;}
-  // podium
-  const cl=Array.isArray(r.classement)?r.classement.slice().sort((a,b)=>a.pos-b.pos):[];
-  const top3=cl.filter(p=>p.pos<=3);
-  if(top3.length){
-    const bw=story?230:180, gap=story?24:18, baseY=y+(story?260:200);
-    const heights={1:story?230:180,2:story?180:140,3:story?140:110};
-    const order=[2,1,3];
-    const totalW=bw*3+gap*2, startX=cx-totalW/2;
-    const medal={1:'#f2a93b',2:'#c0c0c0',3:'#cd7f32'};
-    order.forEach((pos,i)=>{
-      const p=top3.find(x=>x.pos===pos); const px=startX+i*(bw+gap);
-      const h=heights[pos], topY=baseY-h;
-      ctx.fillStyle='#17415a';roundRect(ctx,px,topY,bw,h,8);ctx.fill();
-      if(pos===1){ctx.strokeStyle='#f2a93b';ctx.lineWidth=4;roundRect(ctx,px,topY,bw,h,8);ctx.stroke();}
-      ctx.fillStyle=medal[pos];ctx.font=`900 ${story?54:42}px 'Saira Condensed',sans-serif`;ctx.textAlign='center';
-      ctx.fillText(pos+(pos===1?'er':'e'),px+bw/2,topY-18);
-      if(p){ctx.fillStyle='#f1f7fa';ctx.font=`700 ${story?34:26}px 'Saira Condensed',sans-serif`;
-        wrapText(ctx,p.nom,px+bw/2,topY+h/2,bw-20,story?36:28);
-        if(p.num){ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?26:20}px 'Saira Condensed',sans-serif`;ctx.fillText('#'+p.num,px+bw/2,baseY-14);}}
-    });
-    y=baseY+(story?80:60);
-  }
-  // places suivantes
-  const rest=cl.filter(p=>p.pos>3);
-  if(rest.length){
-    ctx.textAlign='left';ctx.font=`400 ${story?32:26}px Inter,sans-serif`;
-    const lx=story?100:70; let ly=y;
-    rest.slice(0,story?8:5).forEach(p=>{
-      ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?32:26}px 'Saira Condensed',sans-serif`;
-      ctx.fillText(p.pos+'.',lx,ly);
-      ctx.fillStyle='#f1f7fa';ctx.font=`400 ${story?32:26}px Inter,sans-serif`;
-      ctx.fillText(p.nom,lx+(story?60:48),ly);
-      if(p.num){ctx.fillStyle='#9fb8c4';ctx.textAlign='right';ctx.fillText('#'+p.num,W-lx,ly);ctx.textAlign='left';}
-      ly+=story?50:40;
-    });
-    y=ly;
-  }
-  // pied
-  ctx.textAlign='center';ctx.fillStyle='#5cc6e8';
-  ctx.font=`600 ${story?28:24}px Inter,sans-serif`;
-  ctx.fillText('@mcmorfalous · depuis 1984',cx,H-(story?70:50));
+async function openResultImages(courseId){
+  const {data:course}=await sb.from('resultats_courses').select('*').eq('id',courseId).single();
+  const {data:cats}=await sb.from('resultats_categories').select('*').eq('course_id',courseId).order('ordre');
+  const {data:parts}=await sb.from('resultats_partenaires').select('*').order('ordre');
+  await ensureLogoLoaded();
+  _partImgs=[];
+  if(parts?.length){for(const p of parts){const im=await loadImg(p.logo_url);if(im)_partImgs.push(im);}}
+  _genState={course,cats:cats||[],fmt:'post',withParts:_partImgs.length>0,index:0};
+  const total=1+(cats?.length||0);
+  openModal('Images de résultats',`
+    <div class="subtabs" style="margin-bottom:12px">
+      <button class="active" id="gf-post" onclick="setGenFmt('post',this)">Post carré</button>
+      <button id="gf-story" onclick="setGenFmt('story',this)">Story</button>
+    </div>
+    ${_partImgs.length?`<label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:.9rem"><input type="checkbox" id="gf-parts" ${_partImgs.length?'checked':''} onchange="toggleParts(this.checked)" style="width:auto"> Afficher la bande partenaires</label>`:'<p style="color:var(--ink-dim);font-size:.85rem;margin-bottom:12px">Astuce : ajoute des partenaires (onglet Résultats de l\'admin) pour la bande en bas.</p>'}
+    <div class="res-preview-wrap">
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn btn-ghost btn-sm" onclick="genPrev(-1)">←</button>
+        <span id="gf-label" style="font-family:var(--font-disp);text-transform:uppercase;min-width:160px;text-align:center"></span>
+        <button class="btn btn-ghost btn-sm" onclick="genPrev(1)">→</button>
+      </div>
+      <canvas id="resCanvas" class="res-canvas"></canvas>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <button class="btn btn-primary" onclick="downloadCurrent()">📥 Cette image</button>
+        <button class="btn btn-primary" onclick="downloadAll()">📥 Tout télécharger</button>
+      </div>
+    </div>`);
+  renderGen();
+}
+function setGenFmt(fmt,btn){_genState.fmt=fmt;$$('#gf-post,#gf-story').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderGen();}
+function toggleParts(v){_genState.withParts=v;renderGen();}
+function genPrev(d){
+  const total=1+_genState.cats.length;
+  _genState.index=(_genState.index+d+total)%total;
+  renderGen();
+}
+function renderGen(){
+  const total=1+_genState.cats.length;
+  const i=_genState.index;
+  $('#gf-label').textContent = i===0?'Couverture' : (_genState.cats[i-1]?.nom||'');
+  if(i===0)drawCover(_genState.course,_genState.fmt,_genState.withParts);
+  else drawCategory(_genState.course,_genState.cats[i-1],_genState.fmt,_genState.withParts);
+}
+
+function bg(ctx,W,H){
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#102f42');g.addColorStop(1,'#0a1a24');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.save();for(let x=-H;x<W+H;x+=28){ctx.fillStyle='#5cc6e8';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+14,0);ctx.lineTo(x+14-40,40);ctx.lineTo(x-40,40);ctx.closePath();ctx.fill();}ctx.restore();
+}
+function drawLogo(ctx,cx,y,size){
+  if(!_logoImg)return;
+  ctx.save();ctx.beginPath();ctx.arc(cx,y+size/2,size/2,0,Math.PI*2);ctx.clip();
+  ctx.drawImage(_logoImg,cx-size/2,y,size,size);ctx.restore();
+  ctx.strokeStyle='#5cc6e8';ctx.lineWidth=6;ctx.beginPath();ctx.arc(cx,y+size/2,size/2,0,Math.PI*2);ctx.stroke();
+}
+function drawPartners(ctx,W,H,withParts){
+  if(!withParts||!_partImgs.length)return H;
+  const bandH=Math.round(W*0.11), y=H-bandH;
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,y,W,bandH);
+  const n=_partImgs.length, cellW=W/n, pad=bandH*0.16;
+  _partImgs.forEach((im,i)=>{
+    const maxW=cellW-pad*2, maxH=bandH-pad*2;
+    let w=im.width,h=im.height,r=Math.min(maxW/w,maxH/h);w*=r;h*=r;
+    ctx.drawImage(im,i*cellW+(cellW-w)/2,y+(bandH-h)/2,w,h);
+  });
+  return y;
+}
+function drawCover(course,fmt,withParts){
+  const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
+  const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
+  bg(ctx,W,H);
+  const bottomY=drawPartners(ctx,W,H,withParts);
+  const ls=story?300:240;let y=story?200:120;
+  drawLogo(ctx,cx,y,ls);y+=ls+(story?90:60);
+  ctx.textAlign='center';
+  ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?44:38}px 'Saira Condensed',sans-serif`;
+  wrapText(ctx,(course.evenement||'').toUpperCase(),cx,y,W-140,story?52:44);y+=story?120:96;
+  ctx.fillStyle='#f1f7fa';ctx.font=`900 ${story?150:120}px 'Saira Condensed',sans-serif`;
+  ctx.fillText('RÉSULTATS',cx,y);y+=story?80:60;
+  ctx.fillStyle='#e8472e';ctx.font=`800 ${story?60:48}px 'Saira Condensed',sans-serif`;
+  const sub=[course.lieu,course.saison].filter(Boolean).join(' · ').toUpperCase();
+  if(sub)ctx.fillText(sub,cx,y);
+  ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?28:24}px Inter,sans-serif`;
+  ctx.fillText('@mcmorfalous · depuis 1984',cx,(withParts&&_partImgs.length?bottomY:H)-(story?50:36));
+}
+function drawCategory(course,cat,fmt,withParts){
+  const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
+  const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
+  bg(ctx,W,H);
+  const bottomY=drawPartners(ctx,W,H,withParts);
+  const ls=story?170:140;let y=story?110:70;
+  drawLogo(ctx,cx,y,ls);y+=ls+(story?50:34);
+  ctx.textAlign='center';
+  ctx.fillStyle='#f1f7fa';ctx.font=`900 ${story?70:58}px 'Saira Condensed',sans-serif`;
+  wrapText(ctx,(cat.nom||'').toUpperCase(),cx,y,W-120,story?74:62);y+=story?50:40;
+  ctx.fillStyle='#5cc6e8';ctx.font=`600 ${story?30:26}px Inter,sans-serif`;
+  ctx.fillText((course.evenement||'')+(course.saison?' '+course.saison:''),cx,y);y+=story?70:54;
+  const cl=Array.isArray(cat.classement)?cat.classement.slice().sort((a,b)=>a.place-b.place):[];
+  const areaBottom=(withParts&&_partImgs.length?bottomY:H)-(story?90:70);
+  const rowH=Math.min(story?92:78,(areaBottom-y)/Math.max(cl.length,1));
+  const lx=story?90:70, rx=W-(story?90:70);
+  // en-tête
+  ctx.textAlign='left';ctx.fillStyle='#9fb8c4';ctx.font=`700 ${story?26:22}px 'Saira Condensed',sans-serif`;
+  ctx.fillText('N°',lx,y);ctx.fillText('PILOTE',lx+(story?90:74),y);
+  ctx.textAlign='right';ctx.fillText('PLACE',rx,y);y+=story?18:14;
+  ctx.strokeStyle='#234a60';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,y);ctx.lineTo(rx,y);ctx.stroke();y+=rowH*0.5;
+  cl.forEach((p,idx)=>{
+    if(idx%2===0){ctx.fillStyle='rgba(23,65,90,.5)';ctx.fillRect(lx-16,y-rowH*0.5,rx-lx+32,rowH);}
+    ctx.textAlign='left';
+    ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?34:28}px 'Saira Condensed',sans-serif`;
+    ctx.fillText(p.num?'#'+p.num:'—',lx,y+rowH*0.15);
+    ctx.fillStyle='#f1f7fa';ctx.font=`400 ${story?34:28}px Inter,sans-serif`;
+    ctx.fillText(p.nom||'',lx+(story?90:74),y+rowH*0.15);
+    ctx.textAlign='right';
+    ctx.fillStyle=p.place<=3?'#f2a93b':'#f1f7fa';ctx.font=`900 ${story?40:32}px 'Saira Condensed',sans-serif`;
+    ctx.fillText(p.place+ordinal(p.place),rx,y+rowH*0.15);
+    y+=rowH;
+  });
+  ctx.textAlign='center';ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?26:22}px Inter,sans-serif`;
+  ctx.fillText('@mcmorfalous · depuis 1984',cx,(withParts&&_partImgs.length?bottomY:H)-(story?40:28));
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function wrapText(ctx,text,x,y,maxW,lh){
@@ -923,12 +951,26 @@ function wrapText(ctx,text,x,y,maxW,lh){
   words.forEach(w=>{const t=line+w+' ';if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),x,yy);line=w+' ';yy+=lh;}else line=t;});
   ctx.fillText(line.trim(),x,yy);
 }
-function downloadResult(name){
-  const cv=$('#resCanvas');if(!cv)return;
-  const a=document.createElement('a');
-  a.download=`resultats-${(name||'mcm').replace(/[^a-z0-9]/gi,'-').toLowerCase()}.png`;
+function dlCanvas(name){
+  const cv=$('#resCanvas');const a=document.createElement('a');
+  a.download=name.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.png';
   a.href=cv.toDataURL('image/png');a.click();
-  toast('Image téléchargée !');
+}
+function downloadCurrent(){
+  const i=_genState.index, base=_genState.course.evenement||'mcm';
+  const name=i===0?`couverture-${base}`:`${base}-${_genState.cats[i-1].nom}`;
+  dlCanvas(name+'-'+_genState.fmt);toast('Image téléchargée');
+}
+async function downloadAll(){
+  const total=1+_genState.cats.length;const base=_genState.course.evenement||'mcm';
+  for(let i=0;i<total;i++){
+    _genState.index=i;renderGen();
+    await new Promise(r=>setTimeout(r,120));
+    const name=i===0?`couverture-${base}`:`${base}-${_genState.cats[i-1].nom}`;
+    dlCanvas(name+'-'+_genState.fmt);
+    await new Promise(r=>setTimeout(r,180));
+  }
+  toast(`${total} images téléchargées !`);
 }
 /* ============ PHOTOS / VIDÉOS ============ */
 function switchMedia(type,btn){
@@ -1108,47 +1150,64 @@ async function saveActu(id){
   closeModal();toast('Enregistré');loadActus();
 }
 
-/* Résultat (course + catégorie + pilotes) */
+/* Course (résultats) */
+async function openCourseForm(id){
+  let c={};if(id){const{data}=await sb.from('resultats_courses').select('*').eq('id',id).single();c=data||{};}
+  openModal(id?'Modifier la course':'Nouvelle course',`
+    ${fld('Événement','co-ev',c.evenement,'text','Championnat de Vendée')}
+    ${fld('Lieu','co-lieu',c.lieu,'text','Challans')}
+    ${fld('Date','co-date',c.date_course,'date')}
+    ${fld('Saison / année','co-saison',c.saison,'text','2026')}
+    <button class="btn btn-primary" onclick="saveCourse('${id||''}')">Enregistrer</button>`);
+}
+async function saveCourse(id){
+  const p={evenement:$('#co-ev').value.trim(),lieu:$('#co-lieu').value.trim()||null,date_course:$('#co-date').value||null,saison:$('#co-saison').value.trim()||null};
+  if(!p.evenement)return toast('Événement requis',true);
+  const {error}=id?await sb.from('resultats_courses').update(p).eq('id',id):await sb.from('resultats_courses').insert(p);
+  if(error)return toast(error.message,true);
+  closeModal();toast('Course enregistrée');loadResultats();
+}
+
+/* Catégorie + pilotes */
 let _piloteCount=0;
-async function openResultatForm(id){
-  let r={};if(id){const{data}=await sb.from('resultats').select('*').eq('id',id).single();r=data||{};}
-  const cl=Array.isArray(r.classement)?r.classement:[];
-  openModal(id?'Modifier le résultat':'Nouveau résultat',`
-    ${fld('Nom de la course','re-nom',r.course_nom,'text','Championnat Vendée MX')}
-    ${fld('Lieu','re-lieu',r.lieu,'text','Saint-Jean')}
-    ${fld('Date','re-date',r.date_course,'date')}
-    <div class="field"><label>Catégorie</label><select id="re-cat">${cats.map(c=>`<option ${r.categorie===c.nom?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>
-    <div class="field"><label>Classement — place · nom du pilote · n° de plaque</label><div id="re-pilotes"></div>
+async function openCatForm(id,courseId){
+  let cat={};if(id){const{data}=await sb.from('resultats_categories').select('*').eq('id',id).single();cat=data||{};}
+  const cl=Array.isArray(cat.classement)?cat.classement:[];
+  openModal(id?'Modifier la catégorie':'Nouvelle catégorie',`
+    ${fld('Nom de la catégorie','cat-nom',cat.nom,'text','Minicross 65cc')}
+    ${fld("Ordre d'affichage",'cat-ordre',cat.ordre??0,'number')}
+    <div class="field"><label>Classement — place · nom prénom · n°</label><div id="cat-pilotes"></div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addPiloteRow()">+ Ajouter un pilote</button>
     </div>
-    ${fld('Lien résultats détaillés (optionnel)','re-lien',r.lien,'text','https://...')}
-    <button class="btn btn-primary" onclick="saveResultat('${id||''}')">Enregistrer</button>`);
-  _piloteCount=0;$('#re-pilotes').innerHTML='';
-  if(cl.length)cl.sort((a,b)=>a.pos-b.pos).forEach(p=>addPiloteRow(p));
+    <button class="btn btn-primary" onclick="saveCat('${id||''}','${courseId||cat.course_id||''}')">Enregistrer</button>`);
+  _piloteCount=0;$('#cat-pilotes').innerHTML='';
+  if(cl.length)cl.sort((a,b)=>a.place-b.place).forEach(p=>addPiloteRow(p));
   else{addPiloteRow();addPiloteRow();addPiloteRow();}
 }
 function addPiloteRow(p={}){
-  _piloteCount++;const i=_piloteCount;
-  const pos=p.pos||$$('#re-pilotes .res-pilote-row').length+1;
+  _piloteCount++;
+  const place=p.place||$$('#cat-pilotes .res-pilote-row').length+1;
   const div=document.createElement('div');div.className='res-pilote-row';
-  div.innerHTML=`<span class="pos"><input value="${pos}" style="width:100%;background:none;border:none;text-align:center;color:var(--accent);font-weight:900" data-pos title="Place"></span>
-    <input placeholder="Nom du pilote" value="${esc(p.nom||'')}" data-nom>
-    <input placeholder="N°" value="${esc(p.num||'')}" data-num style="max-width:70px;text-align:center" title="Numéro de plaque">
+  div.innerHTML=`<span class="pos"><input value="${place}" style="width:100%;background:none;border:none;text-align:center;color:var(--accent);font-weight:900" data-place title="Place"></span>
+    <input placeholder="NOM Prénom" value="${esc(p.nom||'')}" data-nom>
+    <input placeholder="N°" value="${esc(p.num||'')}" data-num style="max-width:70px;text-align:center" title="Numéro">
     <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
-  $('#re-pilotes').appendChild(div);
+  $('#cat-pilotes').appendChild(div);
 }
-async function saveResultat(id){
-  const classement=$$('#re-pilotes .res-pilote-row').map(row=>({
-    pos:parseInt(row.querySelector('[data-pos]').value)||0,
+async function saveCat(id,courseId){
+  const classement=$$('#cat-pilotes .res-pilote-row').map(row=>({
+    place:parseInt(row.querySelector('[data-place]').value)||0,
     nom:row.querySelector('[data-nom]').value.trim(),
     num:row.querySelector('[data-num]').value.trim()||null
-  })).filter(p=>p.nom).sort((a,b)=>a.pos-b.pos);
-  const p={course_nom:$('#re-nom').value.trim(),lieu:$('#re-lieu').value.trim()||null,date_course:$('#re-date').value||null,categorie:$('#re-cat').value,classement,lien:$('#re-lien').value.trim()||null};
-  if(!p.course_nom)return toast('Nom de course requis',true);
-  if(!classement.length)return toast('Ajoute au moins un pilote',true);
-  const {error}=id?await sb.from('resultats').update(p).eq('id',id):await sb.from('resultats').insert(p);
+  })).filter(p=>p.nom).sort((a,b)=>a.place-b.place);
+  const p={nom:$('#cat-nom').value.trim(),ordre:parseInt($('#cat-ordre').value)||0,classement};
+  if(!p.nom)return toast('Nom de catégorie requis',true);
+  if(!courseId)return toast('Course manquante',true);
+  let error;
+  if(id){({error}=await sb.from('resultats_categories').update(p).eq('id',id));}
+  else{({error}=await sb.from('resultats_categories').insert({...p,course_id:courseId}));}
   if(error)return toast(error.message,true);
-  _lastResult=null;closeModal();toast('Résultat enregistré');loadResultats();
+  closeModal();toast('Catégorie enregistrée');loadResultats();
 }
 
 /* Album (photo ou vidéo) */
@@ -1242,7 +1301,7 @@ async function loadAdmin(){
     c.innerHTML=`
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
       <button class="btn btn-primary btn-sm" onclick="openActuForm()">+ Article</button>
-      <button class="btn btn-primary btn-sm" onclick="openResultatForm()">+ Résultat</button>
+      <button class="btn btn-primary btn-sm" onclick="openCourseForm()">+ Course résultats</button>
       <button class="btn btn-primary btn-sm" onclick="openEventForm()">+ Événement</button>
       <button class="btn btn-primary btn-sm" onclick="openAlbumForm()">+ Album photo/vidéo</button>
       <button class="btn btn-ghost btn-sm" onclick="openBureauForm()">+ Membre bureau</button>
@@ -1266,10 +1325,21 @@ async function loadAdmin(){
   if(currentAdminTab==='categories'){
     await loadCats();
     c.innerHTML=`<div class="admin-card"><h3>Ajouter une catégorie</h3>
-      ${fld('Nom','cat-nom','','text','ex : MX Open')}
-      ${fld('Ordre','cat-ordre',(cats.length+1)*10,'number')}
+      ${fld('Nom','catg-nom','','text','ex : MX Open')}
+      ${fld('Ordre','catg-ordre',(cats.length+1)*10,'number')}
       <button class="btn btn-primary btn-sm" onclick="addCat()">Ajouter</button></div>
       ${cats.map(ct=>`<div class="admin-list-row"><div class="info"><strong>${esc(ct.nom)}</strong><small>ordre : ${ct.ordre}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('categories','${ct.id}','admin')">✕</button></div>`).join('')}`;
+  }
+
+  if(currentAdminTab==='respartenaires'){
+    const {data}=await sb.from('resultats_partenaires').select('*').order('ordre');
+    c.innerHTML=`<div class="admin-card"><h3>Partenaires pour la bande d'images</h3>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Ces logos apparaissent en bas des images de résultats (option activable à la génération).</p>
+      ${fileField('Logo','rp-file','rp-logo','image/*','respart')}
+      ${fld('Nom','rp-nom','')}
+      ${fld('Ordre','rp-ordre',(data?.length||0)*10+10,'number')}
+      <button class="btn btn-primary btn-sm" onclick="addResPart()">Ajouter</button></div>
+      ${(data?.length)?data.map(p=>`<div class="admin-list-row"><div class="info" style="display:flex;align-items:center;gap:10px"><img src="${esc(p.logo_url)}" style="height:34px;background:#fff;border-radius:4px;padding:2px"><strong>${esc(p.nom)}</strong></div><button class="btn btn-danger btn-sm" onclick="delRow('resultats_partenaires','${p.id}','admin')">✕</button></div>`).join(''):'<p style="color:var(--ink-dim);font-size:.9rem">Aucun partenaire résultats.</p>'}`;
   }
 
   if(currentAdminTab==='liens'){
@@ -1293,10 +1363,16 @@ async function loadAdmin(){
   }
 }
 async function addCat(){
-  const nom=$('#cat-nom').value.trim();if(!nom)return toast('Nom requis',true);
-  const {error}=await sb.from('categories').insert({nom,ordre:parseInt($('#cat-ordre').value)||0});
+  const nom=$('#catg-nom').value.trim();if(!nom)return toast('Nom requis',true);
+  const {error}=await sb.from('categories').insert({nom,ordre:parseInt($('#catg-ordre').value)||0});
   if(error)return toast(error.message,true);
   toast('Catégorie ajoutée');loadAdmin();
+}
+async function addResPart(){
+  const logo=$('#rp-logo').value.trim();if(!logo)return toast('Ajoute un logo',true);
+  const {error}=await sb.from('resultats_partenaires').insert({nom:$('#rp-nom').value.trim()||'Partenaire',logo_url:logo,ordre:parseInt($('#rp-ordre').value)||0});
+  if(error)return toast(error.message,true);
+  toast('Partenaire ajouté');loadAdmin();
 }
 async function saveConfig(){
   const rows=[{cle:'lien_prono',valeur:$('#cfg-prono').value.trim()},{cle:'lien_boutique',valeur:$('#cfg-boutique').value.trim()}];
