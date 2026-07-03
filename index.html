@@ -171,8 +171,11 @@ body.is-admin .tile.admin-only{display:flex}
 .subtabs button.active{background:var(--accent);color:#0a1a24;border-color:var(--accent)}
 /* Générateur résultats */
 .res-pilote-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.res-pilote-row .pos{width:34px;height:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border-radius:5px;font-family:var(--font-disp);font-weight:900;color:var(--accent)}
-.res-pilote-row input{flex:1}
+.res-pilote-row .pos-input{width:56px;flex-shrink:0;text-align:center;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:11px 4px;color:var(--accent);font-family:var(--font-disp);font-weight:900;font-size:1.15rem}
+.res-pilote-row input[data-nom],.res-pilote-row input[data-num]{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:11px 10px;color:var(--ink)}
+.res-pilote-row input:focus{outline:none;border-color:var(--accent)}
+.res-head{display:flex;gap:8px;margin-bottom:6px;font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.78rem;color:var(--ink-dim);letter-spacing:.04em}
+.res-head span{padding:0 2px}
 .res-preview-wrap{background:var(--surface-2);border-radius:8px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px}
 canvas.res-canvas{max-width:100%;height:auto;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface)}
@@ -447,6 +450,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button onclick="adminTab('inscriptions',this)">Inscriptions</button>
     <button onclick="adminTab('soumissions',this)">Idées reçues</button>
     <button onclick="adminTab('categories',this)">Catégories</button>
+    <button onclick="adminTab('pilotes',this)">Pilotes</button>
     <button onclick="adminTab('respartenaires',this)">Part. résultats</button>
     <button onclick="adminTab('liens',this)">Liens</button>
     <button onclick="adminTab('admins',this)">Bureau</button>
@@ -494,7 +498,7 @@ const SUPABASE_URL = 'https://zgydlraatcorntfgsyxf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpneWRscmFhdGNvcm50ZmdzeXhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5OTY0NDAsImV4cCI6MjA5ODU3MjQ0MH0.ypwhep6qChpU9p38vU7Mze01-ouvcIR0a0ZOu29DTGQ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser=null, isAdmin=false, cfg={}, cats=[];
+let currentUser=null, isAdmin=false, cfg={}, cats=[], pilotesDB=[];
 let mediaType='photo';
 
 const $=(s,p=document)=>p.querySelector(s);
@@ -630,6 +634,10 @@ async function loadConfig(){
 async function loadCats(){
   const {data}=await sb.from('categories').select('*').order('ordre');
   cats=data||[];
+}
+async function loadPilotes(){
+  const {data}=await sb.from('pilotes').select('*').order('nom');
+  pilotesDB=data||[];
 }
 
 const loaders={
@@ -896,54 +904,79 @@ function drawCover(course,fmt,withParts){
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
   bg(ctx,W,H);
   const bottomY=drawPartners(ctx,W,H,withParts);
-  const ls=story?300:240;let y=story?200:120;
-  drawLogo(ctx,cx,y,ls);y+=ls+(story?90:60);
+  const contentBottom=(withParts&&_partImgs.length?bottomY:H);
+  const ls=story?320:250;let y=story?190:110;
+  drawLogo(ctx,cx,y,ls);y+=ls+(story?100:64);
   ctx.textAlign='center';
-  ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?44:38}px 'Saira Condensed',sans-serif`;
-  wrapText(ctx,(course.evenement||'').toUpperCase(),cx,y,W-140,story?52:44);y+=story?120:96;
-  ctx.fillStyle='#f1f7fa';ctx.font=`900 ${story?150:120}px 'Saira Condensed',sans-serif`;
-  ctx.fillText('RÉSULTATS',cx,y);y+=story?80:60;
-  ctx.fillStyle='#e8472e';ctx.font=`800 ${story?60:48}px 'Saira Condensed',sans-serif`;
+  // événement
+  ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?46:40}px 'Saira Condensed',sans-serif`;
+  wrapText(ctx,(course.evenement||'').toUpperCase(),cx,y,W-160,story?54:46);y+=story?130:104;
+  // grand mot RÉSULTATS avec ombre
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=18;ctx.shadowOffsetY=8;
+  ctx.fillStyle='#f1f7fa';ctx.font=`900 ${story?170:135}px 'Saira Condensed',sans-serif`;
+  ctx.fillText('RÉSULTATS',cx,y);ctx.restore();
+  y+=story?40:28;
+  // barre rouge sous le titre
+  const barW=story?520:420;ctx.fillStyle='#e8472e';roundRect(ctx,cx-barW/2,y,barW,story?10:8,4);ctx.fill();
+  y+=story?70:54;
+  // lieu · saison dans un bandeau
   const sub=[course.lieu,course.saison].filter(Boolean).join(' · ').toUpperCase();
-  if(sub)ctx.fillText(sub,cx,y);
+  if(sub){ctx.font=`800 ${story?54:44}px 'Saira Condensed',sans-serif`;const tw=ctx.measureText(sub).width;const pad=story?40:32,bh=story?76:62;ctx.fillStyle='#17415a';roundRect(ctx,cx-tw/2-pad,y-bh*0.72,tw+pad*2,bh,10);ctx.fill();ctx.fillStyle='#f1f7fa';ctx.fillText(sub,cx,y);}
   ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?28:24}px Inter,sans-serif`;
-  ctx.fillText('@mcmorfalous · depuis 1984',cx,(withParts&&_partImgs.length?bottomY:H)-(story?50:36));
+  ctx.fillText('@mcmorfalous · depuis 1984',cx,contentBottom-(story?54:38));
 }
 function drawCategory(course,cat,fmt,withParts){
   const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
   bg(ctx,W,H);
   const bottomY=drawPartners(ctx,W,H,withParts);
-  const ls=story?170:140;let y=story?110:70;
-  drawLogo(ctx,cx,y,ls);y+=ls+(story?50:34);
+  const contentBottom=(withParts&&_partImgs.length?bottomY:H);
+  const ls=story?175:145;let y=story?100:64;
+  drawLogo(ctx,cx,y,ls);y+=ls+(story?46:32);
   ctx.textAlign='center';
-  ctx.fillStyle='#f1f7fa';ctx.font=`900 ${story?70:58}px 'Saira Condensed',sans-serif`;
-  wrapText(ctx,(cat.nom||'').toUpperCase(),cx,y,W-120,story?74:62);y+=story?50:40;
-  ctx.fillStyle='#5cc6e8';ctx.font=`600 ${story?30:26}px Inter,sans-serif`;
-  ctx.fillText((course.evenement||'')+(course.saison?' '+course.saison:''),cx,y);y+=story?70:54;
+  // titre catégorie dans un bandeau cyan
+  const catTxt=(cat.nom||'').toUpperCase();
+  ctx.font=`900 ${story?72:60}px 'Saira Condensed',sans-serif`;
+  const ctw=Math.min(ctx.measureText(catTxt).width,W-140);
+  const cbh=story?96:80, cpad=story?44:36;
+  ctx.fillStyle='#5cc6e8';roundRect(ctx,cx-ctw/2-cpad,y-cbh*0.7,ctw+cpad*2,cbh,12);ctx.fill();
+  ctx.fillStyle='#0a1a24';wrapText(ctx,catTxt,cx,y,W-160,story?74:62);y+=story?58:46;
+  ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?28:24}px Inter,sans-serif`;
+  ctx.fillText((course.evenement||'')+(course.saison?' '+course.saison:''),cx,y);y+=story?64:50;
+  // panneau tableau
   const cl=Array.isArray(cat.classement)?cat.classement.slice().sort((a,b)=>a.place-b.place):[];
-  const areaBottom=(withParts&&_partImgs.length?bottomY:H)-(story?90:70);
-  const rowH=Math.min(story?92:78,(areaBottom-y)/Math.max(cl.length,1));
-  const lx=story?90:70, rx=W-(story?90:70);
-  // en-tête
-  ctx.textAlign='left';ctx.fillStyle='#9fb8c4';ctx.font=`700 ${story?26:22}px 'Saira Condensed',sans-serif`;
-  ctx.fillText('N°',lx,y);ctx.fillText('PILOTE',lx+(story?90:74),y);
-  ctx.textAlign='right';ctx.fillText('PLACE',rx,y);y+=story?18:14;
-  ctx.strokeStyle='#234a60';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,y);ctx.lineTo(rx,y);ctx.stroke();y+=rowH*0.5;
+  const px=story?70:52, pw=W-px*2;
+  const areaBottom=contentBottom-(story?86:66);
+  const headH=story?58:48;
+  const rowH=Math.min(story?84:70,(areaBottom-y-headH)/Math.max(cl.length,1));
+  const panelH=headH+rowH*cl.length+20;
+  ctx.fillStyle='rgba(16,38,52,.75)';roundRect(ctx,px,y,pw,panelH,14);ctx.fill();
+  ctx.strokeStyle='#234a60';ctx.lineWidth=1.5;roundRect(ctx,px,y,pw,panelH,14);ctx.stroke();
+  const lx=px+(story?34:26), rx=px+pw-(story?34:26);
+  // en-tête colonnes
+  let ty=y+headH*0.66;
+  ctx.fillStyle='#17415a';roundRect(ctx,px,y,pw,headH,14);ctx.fill();ctx.fillStyle='#17415a';ctx.fillRect(px,y+headH-14,pw,14);
+  ctx.textAlign='left';ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?26:22}px 'Saira Condensed',sans-serif`;
+  ctx.fillText('N°',lx,ty);ctx.fillText('PILOTE',lx+(story?96:78),ty);
+  ctx.textAlign='right';ctx.fillText('PLACE',rx,ty);
+  let ry=y+headH;
   cl.forEach((p,idx)=>{
-    if(idx%2===0){ctx.fillStyle='rgba(23,65,90,.5)';ctx.fillRect(lx-16,y-rowH*0.5,rx-lx+32,rowH);}
+    if(idx%2===1){ctx.fillStyle='rgba(23,65,90,.4)';ctx.fillRect(px+2,ry,pw-4,rowH);}
+    const baseline=ry+rowH*0.64;
     ctx.textAlign='left';
-    ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?34:28}px 'Saira Condensed',sans-serif`;
-    ctx.fillText(p.num?'#'+p.num:'—',lx,y+rowH*0.15);
-    ctx.fillStyle='#f1f7fa';ctx.font=`400 ${story?34:28}px Inter,sans-serif`;
-    ctx.fillText(p.nom||'',lx+(story?90:74),y+rowH*0.15);
+    ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?32:26}px 'Saira Condensed',sans-serif`;
+    ctx.fillText(p.num?'#'+p.num:'—',lx,baseline);
+    ctx.fillStyle='#f1f7fa';ctx.font=`400 ${story?32:26}px Inter,sans-serif`;
+    ctx.fillText(p.nom||'',lx+(story?96:78),baseline);
     ctx.textAlign='right';
-    ctx.fillStyle=p.place<=3?'#f2a93b':'#f1f7fa';ctx.font=`900 ${story?40:32}px 'Saira Condensed',sans-serif`;
-    ctx.fillText(p.place+ordinal(p.place),rx,y+rowH*0.15);
-    y+=rowH;
+    const medal=p.place===1?'#f2a93b':p.place===2?'#c0c0c0':p.place===3?'#cd7f32':'#f1f7fa';
+    ctx.fillStyle=medal;ctx.font=`900 ${story?40:32}px 'Saira Condensed',sans-serif`;
+    ctx.fillText(p.place+ordinal(p.place),rx,baseline);
+    ry+=rowH;
   });
   ctx.textAlign='center';ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?26:22}px Inter,sans-serif`;
-  ctx.fillText('@mcmorfalous · depuis 1984',cx,(withParts&&_partImgs.length?bottomY:H)-(story?40:28));
+  ctx.fillText('@mcmorfalous · depuis 1984',cx,contentBottom-(story?38:26));
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function wrapText(ctx,text,x,y,maxW,lh){
@@ -1173,11 +1206,22 @@ let _piloteCount=0;
 async function openCatForm(id,courseId){
   let cat={};if(id){const{data}=await sb.from('resultats_categories').select('*').eq('id',id).single();cat=data||{};}
   const cl=Array.isArray(cat.classement)?cat.classement:[];
+  await loadCats();await loadPilotes();
+  const catOptions=cats.map(c=>`<option value="${esc(c.nom)}" ${cat.nom===c.nom?'selected':''}>${esc(c.nom)}</option>`).join('');
+  const pilotesDatalist=pilotesDB.map(p=>`<option value="${esc(p.nom)}">${p.num?'#'+esc(p.num):''}</option>`).join('');
   openModal(id?'Modifier la catégorie':'Nouvelle catégorie',`
-    ${fld('Nom de la catégorie','cat-nom',cat.nom,'text','Minicross 65cc')}
+    <div class="field"><label>Catégorie</label>
+      <select id="cat-nom">${catOptions||'<option value="">— aucune catégorie, ajoute-en dans l onglet Catégories —</option>'}</select>
+    </div>
     ${fld("Ordre d'affichage",'cat-ordre',cat.ordre??0,'number')}
-    <div class="field"><label>Classement — place · nom prénom · n°</label><div id="cat-pilotes"></div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="addPiloteRow()">+ Ajouter un pilote</button>
+    <datalist id="pilotesList">${pilotesDatalist}</datalist>
+    <div class="field"><label>Classement</label>
+      <div class="res-head"><span style="width:56px">Place</span><span style="flex:1">Nom Prénom</span><span style="width:70px">N°</span><span style="width:34px"></span></div>
+      <div id="cat-pilotes"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addPiloteRow()">+ Pilote</button>
+        ${pilotesDB.length?`<select id="pilotePick" style="background:var(--surface-2);border:1px solid var(--line);border-radius:4px;color:var(--ink);padding:8px;font-size:.9rem" onchange="pickPilote(this)"><option value="">📋 Piocher un pilote connu…</option>${pilotesDB.map((p,i)=>`<option value="${i}">${esc(p.nom)}${p.num?' #'+esc(p.num):''}</option>`).join('')}</select>`:''}
+      </div>
     </div>
     <button class="btn btn-primary" onclick="saveCat('${id||''}','${courseId||cat.course_id||''}')">Enregistrer</button>`);
   _piloteCount=0;$('#cat-pilotes').innerHTML='';
@@ -1188,11 +1232,23 @@ function addPiloteRow(p={}){
   _piloteCount++;
   const place=p.place||$$('#cat-pilotes .res-pilote-row').length+1;
   const div=document.createElement('div');div.className='res-pilote-row';
-  div.innerHTML=`<span class="pos"><input value="${place}" style="width:100%;background:none;border:none;text-align:center;color:var(--accent);font-weight:900" data-place title="Place"></span>
-    <input placeholder="NOM Prénom" value="${esc(p.nom||'')}" data-nom>
-    <input placeholder="N°" value="${esc(p.num||'')}" data-num style="max-width:70px;text-align:center" title="Numéro">
+  div.innerHTML=`<input class="pos-input" value="${place}" data-place title="Place" inputmode="numeric">
+    <input placeholder="NOM Prénom" value="${esc(p.nom||'')}" data-nom list="pilotesList" oninput="onPiloteName(this)" style="flex:1">
+    <input placeholder="N°" value="${esc(p.num||'')}" data-num style="width:70px;text-align:center" title="Numéro">
     <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
   $('#cat-pilotes').appendChild(div);
+}
+/* auto-remplit le n° si le nom correspond à un pilote connu */
+function onPiloteName(inp){
+  const found=pilotesDB.find(p=>p.nom===inp.value);
+  if(found){const row=inp.parentElement;const numI=row.querySelector('[data-num]');if(numI&&!numI.value)numI.value=found.num||'';}
+}
+/* Piocher un pilote depuis la base via le déroulant (l'ajoute au classement) */
+function pickPilote(sel){
+  const i=parseInt(sel.value);sel.value='';
+  if(isNaN(i))return;
+  const p=pilotesDB[i];
+  addPiloteRow({nom:p.nom,num:p.num});
 }
 async function saveCat(id,courseId){
   const classement=$$('#cat-pilotes .res-pilote-row').map(row=>({
@@ -1201,12 +1257,19 @@ async function saveCat(id,courseId){
     num:row.querySelector('[data-num]').value.trim()||null
   })).filter(p=>p.nom).sort((a,b)=>a.place-b.place);
   const p={nom:$('#cat-nom').value.trim(),ordre:parseInt($('#cat-ordre').value)||0,classement};
-  if(!p.nom)return toast('Nom de catégorie requis',true);
+  if(!p.nom)return toast('Choisis une catégorie',true);
   if(!courseId)return toast('Course manquante',true);
   let error;
   if(id){({error}=await sb.from('resultats_categories').update(p).eq('id',id));}
   else{({error}=await sb.from('resultats_categories').insert({...p,course_id:courseId}));}
   if(error)return toast(error.message,true);
+  // mémoire pilotes : on enregistre les nouveaux automatiquement
+  for(const pil of classement){
+    const exists=pilotesDB.find(x=>x.nom===pil.nom);
+    if(!exists){await sb.from('pilotes').insert({nom:pil.nom,num:pil.num,categorie:p.nom}).then(()=>{});}
+    else if(pil.num&&!exists.num){await sb.from('pilotes').update({num:pil.num}).eq('id',exists.id);}
+  }
+  loadPilotes();
   closeModal();toast('Catégorie enregistrée');loadResultats();
 }
 
@@ -1331,6 +1394,16 @@ async function loadAdmin(){
       ${cats.map(ct=>`<div class="admin-list-row"><div class="info"><strong>${esc(ct.nom)}</strong><small>ordre : ${ct.ordre}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('categories','${ct.id}','admin')">✕</button></div>`).join('')}`;
   }
 
+  if(currentAdminTab==='pilotes'){
+    await loadPilotes();
+    c.innerHTML=`<div class="admin-card"><h3>Base de pilotes</h3>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Les pilotes saisis dans les résultats sont mémorisés ici automatiquement. Tu peux aussi en ajouter/supprimer à la main.</p>
+      ${fld('NOM Prénom','pil-nom','','text','GELOT Quentin')}
+      ${fld('Numéro','pil-num','','text','119')}
+      <button class="btn btn-primary btn-sm" onclick="addPilote()">Ajouter</button></div>
+      ${(pilotesDB.length)?pilotesDB.map(p=>`<div class="admin-list-row"><div class="info"><strong>${esc(p.nom)}</strong><small>${p.num?'#'+esc(p.num):'sans numéro'}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('pilotes','${p.id}','admin')">✕</button></div>`).join(''):'<p style="color:var(--ink-dim);font-size:.9rem">Aucun pilote enregistré.</p>'}`;
+  }
+
   if(currentAdminTab==='respartenaires'){
     const {data}=await sb.from('resultats_partenaires').select('*').order('ordre');
     c.innerHTML=`<div class="admin-card"><h3>Partenaires pour la bande d'images</h3>
@@ -1367,6 +1440,12 @@ async function addCat(){
   const {error}=await sb.from('categories').insert({nom,ordre:parseInt($('#catg-ordre').value)||0});
   if(error)return toast(error.message,true);
   toast('Catégorie ajoutée');loadAdmin();
+}
+async function addPilote(){
+  const nom=$('#pil-nom').value.trim();if(!nom)return toast('Nom requis',true);
+  const {error}=await sb.from('pilotes').insert({nom,num:$('#pil-num').value.trim()||null});
+  if(error)return toast(error.message,true);
+  toast('Pilote ajouté');loadPilotes().then(loadAdmin);
 }
 async function addResPart(){
   const logo=$('#rp-logo').value.trim();if(!logo)return toast('Ajoute un logo',true);
@@ -1416,6 +1495,7 @@ function hideSplash(){
   await initAuth();
   await loadConfig();
   await loadCats();
+  loadPilotes();
   loadHome();
   hideSplash();
 })();
