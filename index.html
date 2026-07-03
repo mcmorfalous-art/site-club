@@ -378,21 +378,12 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="eyebrow">Ta voix compte</div>
   <h1 class="title">Participer</h1>
   <p class="lead" style="margin-bottom:32px">Propose tes idées et fais vivre le club.</p>
-  <div class="grid grid-2">
-    <div class="form-box">
-      <h2 class="section-title" style="margin-bottom:16px">💡 Boîte à idées</h2>
-      <p style="color:var(--ink-dim);margin-bottom:18px">Une suggestion pour améliorer le club ?</p>
-      <div class="field"><label>Ton nom (optionnel)</label><input id="idee-nom" placeholder="Prénom"></div>
-      <div class="field"><label>Ton idée</label><textarea id="idee-contenu" placeholder="Je propose que…"></textarea></div>
-      <button class="btn btn-primary" onclick="envoyerSoumission('idee')">Envoyer mon idée</button>
-    </div>
-    <div class="form-box">
-      <h2 class="section-title" style="margin-bottom:16px">🏁 Proposer un circuit</h2>
-      <p style="color:var(--ink-dim);margin-bottom:18px">Une idée de circuit pour une journée roulage ?</p>
-      <div class="field"><label>Ton nom (optionnel)</label><input id="circuit-nom" placeholder="Prénom"></div>
-      <div class="field"><label>Le circuit proposé</label><textarea id="circuit-contenu" placeholder="Nom, lieu, pourquoi…"></textarea></div>
-      <button class="btn btn-primary" onclick="envoyerSoumission('circuit')">Proposer</button>
-    </div>
+  <div class="form-box" style="margin:0 auto">
+    <h2 class="section-title" style="margin-bottom:16px">💡 Boîte à idées</h2>
+    <p style="color:var(--ink-dim);margin-bottom:18px">Une suggestion pour améliorer le club, une idée de sortie ou de circuit ? Dis-nous tout.</p>
+    <div class="field"><label>Ton nom (optionnel)</label><input id="idee-nom" placeholder="Prénom"></div>
+    <div class="field"><label>Ton idée</label><textarea id="idee-contenu" placeholder="Je propose que…"></textarea></div>
+    <button class="btn btn-primary" onclick="envoyerSoumission('idee')">Envoyer mon idée</button>
   </div>
   <p style="margin-top:40px;color:var(--ink-dim);font-size:.85rem">Membre du bureau ? L'accès se trouve en bas de page.</p>
 </section>
@@ -1178,16 +1169,18 @@ async function loadAdmin(){
   const c=$('#adminContent');c.innerHTML='<div class="loading">Chargement…</div>';
 
   if(currentAdminTab==='contenu'){
-    c.innerHTML=`<div class="grid grid-2">
-      <div class="admin-card"><h3>📰 Articles / Actus</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Comptes-rendus, infos. Texte + PDF.</p><button class="btn btn-primary btn-sm" onclick="openActuForm()">+ Nouvel article</button></div>
-      <div class="admin-card"><h3>🏁 Résultats pilotes</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Par catégorie, avec génération d'image.</p><button class="btn btn-primary btn-sm" onclick="openResultatForm()">+ Nouveau résultat</button></div>
-      <div class="admin-card"><h3>📅 Événements</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Calendrier + lien Doodle.</p><button class="btn btn-primary btn-sm" onclick="openEventForm()">+ Nouvel événement</button></div>
-      <div class="admin-card"><h3>📸 Photos / Vidéos</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Albums photo et vidéos.</p><button class="btn btn-primary btn-sm" onclick="openAlbumForm()">+ Nouvel album</button></div>
-      <div class="admin-card"><h3>👥 Bureau</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Organigramme du club.</p><button class="btn btn-primary btn-sm" onclick="openBureauForm()">+ Membre</button></div>
-      <div class="admin-card"><h3>🤝 Partenaires</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Logos et liens.</p><button class="btn btn-primary btn-sm" onclick="openPartenaireForm()">+ Partenaire</button></div>
-      <div class="admin-card"><h3>📖 Pages</h3><p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:12px">Histoire, licence.</p><button class="btn btn-ghost btn-sm" onclick="openPageForm('notre-histoire','Notre histoire')">Histoire</button> <button class="btn btn-ghost btn-sm" onclick="openPageForm('prise-licence','Prendre sa licence')">Licence</button></div>
+    c.innerHTML=`
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <button class="btn btn-primary btn-sm" onclick="openActuForm()">+ Article</button>
+      <button class="btn btn-primary btn-sm" onclick="openResultatForm()">+ Résultat</button>
+      <button class="btn btn-primary btn-sm" onclick="openEventForm()">+ Événement</button>
+      <button class="btn btn-primary btn-sm" onclick="openAlbumForm()">+ Album photo/vidéo</button>
+      <button class="btn btn-ghost btn-sm" onclick="openBureauForm()">+ Membre bureau</button>
+      <button class="btn btn-ghost btn-sm" onclick="openPartenaireForm()">+ Partenaire</button>
+      <button class="btn btn-ghost btn-sm" onclick="openPageForm('notre-histoire','Notre histoire')">Page Histoire</button>
+      <button class="btn btn-ghost btn-sm" onclick="openPageForm('prise-licence','Prendre sa licence')">Page Licence</button>
     </div>
-    <p style="color:var(--ink-dim);font-size:.88rem;margin-top:18px">Pour modifier ou supprimer un élément existant, va sur la page publique concernée : les boutons ✎ et ✕ y sont affichés en mode admin.</p>`;
+    <p style="color:var(--ink-dim);font-size:.88rem">Pour modifier ou supprimer un élément existant, va sur la page publique concernée : les boutons ✎ et ✕ y sont affichés en mode admin.</p>`;
   }
 
   if(currentAdminTab==='inscriptions'){
