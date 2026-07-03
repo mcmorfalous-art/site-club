@@ -6,6 +6,11 @@
 <title>MC Les Morfalous — Moto Club de Vix</title>
 <meta name="description" content="Site officiel du MC Les Morfalous, moto club de Vix en Vendée depuis 1984.">
 <meta name="theme-color" content="#0a1a24">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MC Morfalous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -360,7 +365,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button class="btn btn-primary" onclick="envoyerSoumission('circuit')">Proposer</button>
     </div>
   </div>
-  <p style="margin-top:40px"><a class="link-discret" href="#" onclick="openAuth();return false">Accès bureau</a></p>
+  <p style="margin-top:40px;color:var(--ink-dim);font-size:.85rem">Membre du bureau ? L'accès se trouve en bas de page.</p>
 </section>
 
 <!-- ADMIN -->
@@ -390,6 +395,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
         <a href="https://www.facebook.com/morfalous85/" target="_blank" rel="noopener">Facebook</a>
         <a href="https://www.instagram.com/mcmorfalous/" target="_blank" rel="noopener">Instagram</a>
       </div>
+      <button id="installBtn" class="btn btn-ghost btn-sm" style="display:none;margin-top:14px" onclick="installApp()">📲 Installer l'app</button>
     </div>
     <div>
       <h4 style="font-size:1rem">Le club</h4>
@@ -401,7 +407,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       </p>
     </div>
   </div>
-  <div class="footer-bottom">© <span id="year"></span> MC Les Morfalous · Site du club</div>
+  <div class="footer-bottom">© <span id="year"></span> MC Les Morfalous · Site du club · <a class="link-discret" href="#" onclick="openAuth();return false">Espace bureau</a></div>
 </footer>
 
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
@@ -1177,6 +1183,23 @@ async function addAdmin(){
   const {error}=await sb.from('admins').insert({user_id,nom:$('#adm-nom').value.trim()||null,role_bureau:$('#adm-role').value.trim()||null});
   if(error)return toast(error.message,true);
   toast('Admin ajouté');loadAdmin();
+}
+
+/* ============ PWA (service worker + install) ============ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();_deferredPrompt=e;
+  const b=$('#installBtn'); if(b)b.style.display='inline-flex';
+});
+function installApp(){
+  if(!_deferredPrompt)return toast("Utilise le menu de ton navigateur → « Ajouter à l'écran d'accueil »");
+  _deferredPrompt.prompt();
+  _deferredPrompt.userChoice.finally(()=>{_deferredPrompt=null;const b=$('#installBtn');if(b)b.style.display='none';});
 }
 
 /* ============ INIT ============ */
