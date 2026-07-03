@@ -89,6 +89,20 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .tile p{color:var(--ink-dim);font-size:.86rem;margin:0}
 .tile.hot{border-left-color:var(--hot);background:#1a2320}
 .tile.hot h3{color:var(--ink)}
+/* Tuiles Ouverture (cyan) et Travaux (ambre) — accès mis en avant */
+.tile-open{background:linear-gradient(135deg,#7a4a12,#5a370d);border-color:var(--amber);border-left-color:var(--amber)}
+.tile-open h3{color:#fff4e2}
+.tile-open p{color:#f5d9a8!important}
+.tile-open:hover{border-color:var(--amber)}
+.tile-travaux{background:linear-gradient(135deg,#12506a,#0d3a4f);border-color:var(--accent);border-left-color:var(--accent)}
+.tile-travaux h3{color:#eafaff}
+.tile-travaux p{color:#bfe6f3!important}
+.tile-travaux:hover{border-color:var(--accent-2)}
+/* Boutons nav Ouverture / Travaux colorés */
+.nav-open{background:var(--amber)!important;color:#0a1a24!important;font-weight:700!important}
+.nav-open:hover{filter:brightness(1.08)}
+.nav-travaux{background:var(--accent)!important;color:#0a1a24!important;font-weight:700!important}
+.nav-travaux:hover{background:var(--accent-2)!important}
 .tile .ext{font-size:.75rem;opacity:.7}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;transition:border-color .15s,transform .15s;display:flex;flex-direction:column}
 .card:hover{border-color:#3a5c72;transform:translateY(-2px)}
@@ -186,8 +200,9 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* Créneaux ouverture */
 .creneaux-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:32px}
-.creneau{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:18px;transition:transform .15s,border-color .15s;cursor:pointer;text-align:left}
-.creneau:hover{transform:translateY(-2px);border-color:var(--accent)}
+.creneau{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#6d4310,#4f320c);border:1px solid var(--amber);border-left:3px solid var(--amber);border-radius:10px;padding:18px;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer;text-align:left}
+.creneau:hover{transform:translateY(-2px);border-color:var(--amber);box-shadow:0 8px 24px rgba(242,169,59,.15)}
+.creneau .txt p{color:var(--amber)!important}
 .creneau .ico{font-size:1.8rem;flex-shrink:0}
 .creneau .txt h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;color:var(--ink);line-height:1.1}
 .creneau .txt p{color:var(--accent);font-size:.86rem;margin:2px 0 0;display:flex;align-items:center;gap:5px}
@@ -239,8 +254,8 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button data-page="accueil" onclick="go('accueil')">Accueil</button>
       <button data-page="calendrier" onclick="go('calendrier')">Calendrier</button>
       <button data-page="actualites" onclick="go('actualites')">Actus</button>
-      <button data-page="ouverture" onclick="go('ouverture')">Ouverture</button>
-      <button onclick="openTravaux()">Travaux ↗</button>
+      <button class="nav-open" data-page="ouverture" onclick="go('ouverture')">Ouverture</button>
+      <button class="nav-travaux" onclick="openTravaux()">Travaux ↗</button>
       <button id="btnBureau" class="nav-bureau" onclick="bureauClick()">🔒 Bureau</button>
       <button class="admin-only nav-cta" data-page="admin" onclick="go('admin')" style="background:var(--hot)!important;color:#fff!important">Admin</button>
     </nav>
@@ -276,10 +291,10 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile" onclick="go('actualites')">
       <span class="ico">📰</span><h3>Actus</h3><p>Vie du club</p>
     </button>
-    <button class="tile" onclick="go('ouverture')">
+    <button class="tile tile-open" onclick="go('ouverture')">
       <span class="ico">🔑</span><h3>Ouverture</h3><p>Créneaux terrain</p>
     </button>
-    <button class="tile" onclick="openTravaux()">
+    <button class="tile tile-travaux" onclick="openTravaux()">
       <span class="ico">🔧</span><h3>Travaux <span class="ext">↗</span></h3><p>S'inscrire au Doodle</p>
     </button>
     <button class="tile" onclick="go('resultats')">
