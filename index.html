@@ -40,6 +40,8 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,26,36,.92);backdrop-
 .nav-links button{font-family:var(--font-disp);font-weight:600;font-size:1.02rem;text-transform:uppercase;letter-spacing:.03em;padding:8px 13px;border-radius:var(--radius);color:var(--ink-dim);transition:color .15s,background .15s}
 .nav-links button:hover{color:var(--ink);background:var(--surface-2)}
 .nav-links button.active{color:var(--accent)}
+.nav-bureau{border:1px solid var(--line);color:var(--ink-dim)!important;font-size:.92rem!important}
+.nav-bureau:hover{border-color:var(--accent);color:var(--accent)!important;background:transparent!important}
 .nav-cta{background:var(--accent)!important;color:#0a1a24!important}
 .nav-cta:hover{background:var(--accent-2)!important}
 .burger{display:none;margin-left:auto;font-size:1.6rem;color:var(--ink)}
@@ -231,6 +233,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button data-page="photos" onclick="go('photos')">Photos</button>
       <button data-page="bureau" onclick="go('bureau')">Le bureau</button>
       <button class="nav-cta" data-page="participer" onclick="go('participer')">Participer</button>
+      <button id="btnBureau" class="nav-bureau" onclick="bureauClick()">🔒 Bureau</button>
       <button class="admin-only nav-cta" data-page="admin" onclick="go('admin')" style="background:var(--hot)!important;color:#fff!important">Admin</button>
     </nav>
     <button class="burger" onclick="document.getElementById('navLinks').classList.toggle('open')">☰</button>
@@ -473,6 +476,17 @@ function go(page){
 }
 function openModal(t,h){$('#modalTitle').textContent=t;$('#modalBody').innerHTML=h;$('#modalBg').classList.add('open');}
 function closeModal(){$('#modalBg').classList.remove('open');}
+function bureauClick(){
+  $('#navLinks').classList.remove('open');
+  if(isAdmin){go('admin');}
+  else{openAuth();}
+}
+function refreshBureauBtn(){
+  const b=$('#btnBureau'); if(!b)return;
+  if(currentUser&&isAdmin){b.innerHTML='⚙️ Admin';b.title='Panneau de gestion';}
+  else if(currentUser){b.innerHTML='🔓 Bureau';b.title='Connecté';}
+  else{b.innerHTML='🔒 Bureau';b.title='Connexion bureau';}
+}
 function openExternal(key){
   const url=cfg[key];
   if(!url){toast('Lien non configuré pour le moment',true);return;}
@@ -493,6 +507,7 @@ async function applySession(session){
   }
   document.body.classList.toggle('is-admin',isAdmin);
   $('#adminBar').classList.toggle('show',isAdmin);
+  refreshBureauBtn();
 }
 function openAuth(){
   if(currentUser){
