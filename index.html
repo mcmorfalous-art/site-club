@@ -726,7 +726,7 @@ async function loadResultats(){
             <button class="btn btn-danger btn-sm admin-only" onclick="delRow('resultats','${r.id}','resultats')">✕</button>
           </div>
         </div>
-        <div style="margin-top:8px">${cl.map(p=>`<div style="display:flex;gap:10px;padding:3px 0;color:var(--ink-dim)"><span style="color:var(--accent);font-family:var(--font-disp);font-weight:700;width:28px">${p.pos}${p.pos==1?'':''}</span><span style="color:var(--ink)">${esc(p.nom)}</span>${p.club?`<span style="margin-left:auto;font-size:.85rem">${esc(p.club)}</span>`:''}</div>`).join('')}</div>
+        <div style="margin-top:8px">${cl.map(p=>`<div style="display:flex;gap:10px;padding:3px 0;color:var(--ink-dim)"><span style="color:var(--accent);font-family:var(--font-disp);font-weight:700;width:28px">${p.pos}</span><span style="color:var(--ink)">${esc(p.nom)}</span>${p.num?`<span style="margin-left:auto;font-size:.85rem;color:var(--ink-dim)">#${esc(p.num)}</span>`:''}</div>`).join('')}</div>
         ${r.lien?`<a class="btn btn-ghost btn-sm" style="margin-top:8px" href="${esc(r.lien)}" target="_blank" rel="noopener">Résultats détaillés ↗</a>`:''}
       </div>`;
     });
@@ -823,7 +823,8 @@ function drawResult(r,fmt){
       ctx.fillStyle=medal[pos];ctx.font=`900 ${story?54:42}px 'Saira Condensed',sans-serif`;ctx.textAlign='center';
       ctx.fillText(pos+(pos===1?'er':'e'),px+bw/2,topY-18);
       if(p){ctx.fillStyle='#f1f7fa';ctx.font=`700 ${story?34:26}px 'Saira Condensed',sans-serif`;
-        wrapText(ctx,p.nom,px+bw/2,topY+h/2,bw-20,story?36:28);}
+        wrapText(ctx,p.nom,px+bw/2,topY+h/2,bw-20,story?36:28);
+        if(p.num){ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?26:20}px 'Saira Condensed',sans-serif`;ctx.fillText('#'+p.num,px+bw/2,baseY-14);}}
     });
     y=baseY+(story?80:60);
   }
@@ -837,7 +838,7 @@ function drawResult(r,fmt){
       ctx.fillText(p.pos+'.',lx,ly);
       ctx.fillStyle='#f1f7fa';ctx.font=`400 ${story?32:26}px Inter,sans-serif`;
       ctx.fillText(p.nom,lx+(story?60:48),ly);
-      if(p.club){ctx.fillStyle='#9fb8c4';ctx.textAlign='right';ctx.fillText(p.club,W-lx,ly);ctx.textAlign='left';}
+      if(p.num){ctx.fillStyle='#9fb8c4';ctx.textAlign='right';ctx.fillText('#'+p.num,W-lx,ly);ctx.textAlign='left';}
       ly+=story?50:40;
     });
     y=ly;
@@ -1048,7 +1049,7 @@ async function openResultatForm(id){
     ${fld('Lieu','re-lieu',r.lieu,'text','Saint-Jean')}
     ${fld('Date','re-date',r.date_course,'date')}
     <div class="field"><label>Catégorie</label><select id="re-cat">${cats.map(c=>`<option ${r.categorie===c.nom?'selected':''}>${esc(c.nom)}</option>`).join('')}</select></div>
-    <div class="field"><label>Classement (pilotes)</label><div id="re-pilotes"></div>
+    <div class="field"><label>Classement — place · nom du pilote · n° de plaque</label><div id="re-pilotes"></div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addPiloteRow()">+ Ajouter un pilote</button>
     </div>
     ${fld('Lien résultats détaillés (optionnel)','re-lien',r.lien,'text','https://...')}
@@ -1061,9 +1062,9 @@ function addPiloteRow(p={}){
   _piloteCount++;const i=_piloteCount;
   const pos=p.pos||$$('#re-pilotes .res-pilote-row').length+1;
   const div=document.createElement('div');div.className='res-pilote-row';
-  div.innerHTML=`<span class="pos"><input value="${pos}" style="width:100%;background:none;border:none;text-align:center;color:var(--accent);font-weight:900" data-pos></span>
+  div.innerHTML=`<span class="pos"><input value="${pos}" style="width:100%;background:none;border:none;text-align:center;color:var(--accent);font-weight:900" data-pos title="Place"></span>
     <input placeholder="Nom du pilote" value="${esc(p.nom||'')}" data-nom>
-    <input placeholder="Club" value="${esc(p.club||'')}" data-club style="max-width:110px">
+    <input placeholder="N°" value="${esc(p.num||'')}" data-num style="max-width:70px;text-align:center" title="Numéro de plaque">
     <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
   $('#re-pilotes').appendChild(div);
 }
@@ -1071,7 +1072,7 @@ async function saveResultat(id){
   const classement=$$('#re-pilotes .res-pilote-row').map(row=>({
     pos:parseInt(row.querySelector('[data-pos]').value)||0,
     nom:row.querySelector('[data-nom]').value.trim(),
-    club:row.querySelector('[data-club]').value.trim()||null
+    num:row.querySelector('[data-num]').value.trim()||null
   })).filter(p=>p.nom).sort((a,b)=>a.pos-b.pos);
   const p={course_nom:$('#re-nom').value.trim(),lieu:$('#re-lieu').value.trim()||null,date_course:$('#re-date').value||null,categorie:$('#re-cat').value,classement,lien:$('#re-lien').value.trim()||null};
   if(!p.course_nom)return toast('Nom de course requis',true);
