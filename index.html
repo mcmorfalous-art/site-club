@@ -351,6 +351,9 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile" onclick="go('participer')">
       <span class="ico">💡</span><h3>Participer</h3><p>Ta boîte à idées</p>
     </button>
+    <button class="tile" onclick="go('partenaires')">
+      <span class="ico">🤝</span><h3>Partenaires</h3><p>Ils nous soutiennent</p>
+    </button>
     <button class="tile" id="tileBoutique" onclick="openExternal('lien_boutique')">
       <span class="ico">🛒</span><h3>Boutique <span class="ext">↗</span></h3><p>Aux couleurs du club</p>
     </button>
@@ -678,15 +681,17 @@ async function loadPilotes(){
   pilotesDB=data||[];
 }
 async function loadPartnersStrip(){
-  const {data}=await sb.from('partenaires').select('*').order('ordre');
   const strip=$('#partnersStrip'), track=$('#psTrack');
-  if(!data?.length){strip.style.display='none';return;}
-  const logos=data.filter(p=>p.logo_url);
+  if(!strip||!track)return;
+  const {data,error}=await sb.from('partenaires').select('*');
+  if(error){console.warn('partenaires strip:',error.message);strip.style.display='none';return;}
+  const logos=(data||[]).filter(p=>p.logo_url).sort((a,b)=>(a.ordre||0)-(b.ordre||0));
   if(!logos.length){strip.style.display='none';return;}
-  // doublé pour un défilement en boucle sans couture
-  const items=[...logos,...logos].map(p=>`<img src="${esc(p.logo_url)}" alt="${esc(p.nom)}" loading="lazy">`).join('');
+  const items=[...logos,...logos].map(p=>`<img src="${esc(p.logo_url)}" alt="${esc(p.nom||'')}" loading="lazy">`).join('');
   track.innerHTML=items;
   strip.style.display='block';
+  // adapter la durée au nombre de logos (plus il y en a, plus c'est long)
+  track.style.animationDuration=Math.max(20,logos.length*6)+'s';
 }
 
 const loaders={
@@ -734,6 +739,7 @@ async function loadHome(){
   $('#homeCalendar').innerHTML=(evs?.length)?evs.map(calItem).join(''):emptyState('Aucun événement à venir.');
   $('#homeActus').innerHTML=(acts?.length)?acts.map(actuCard).join(''):emptyState("Pas encore d'actualité.");
   setupScrollHint();
+  loadPartnersStrip();
 }
 /* Flèche flottante "défiler vers le bas" (accueil uniquement) */
 function setupScrollHint(){
