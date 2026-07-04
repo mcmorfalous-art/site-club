@@ -186,6 +186,15 @@ body.is-admin .tile.admin-only{display:flex}
 .res-preview-wrap{background:var(--surface-2);border-radius:8px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px}
 canvas.res-canvas{max-width:100%;height:auto;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface)}
+.partners-strip{background:#fff;overflow:hidden;padding:14px 0;position:relative}
+.partners-strip::before,.partners-strip::after{content:"";position:absolute;top:0;bottom:0;width:60px;z-index:2;pointer-events:none}
+.partners-strip::before{left:0;background:linear-gradient(90deg,#fff,transparent)}
+.partners-strip::after{right:0;background:linear-gradient(270deg,#fff,transparent)}
+.ps-track{display:flex;align-items:center;gap:48px;width:max-content;animation:psScroll 40s linear infinite}
+.partners-strip:hover .ps-track{animation-play-state:paused}
+.ps-track img{height:46px;max-width:140px;object-fit:contain;flex-shrink:0}
+@keyframes psScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.ps-track{animation:none}}
 .footer-inner{max-width:var(--maxw);margin:0 auto;padding:40px 20px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
 .footer-inner h4{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;font-size:1.4rem;margin-bottom:8px}
 .footer-inner .socials{display:flex;gap:12px;margin-top:10px}
@@ -484,6 +493,10 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 
 </main>
 
+<div class="partners-strip" id="partnersStrip" style="display:none">
+  <div class="ps-track" id="psTrack"></div>
+</div>
+
 <div class="hazard hazard--thin"></div>
 <footer>
   <div class="footer-inner">
@@ -663,6 +676,17 @@ async function loadCats(){
 async function loadPilotes(){
   const {data}=await sb.from('pilotes').select('*').order('nom');
   pilotesDB=data||[];
+}
+async function loadPartnersStrip(){
+  const {data}=await sb.from('partenaires').select('*').order('ordre');
+  const strip=$('#partnersStrip'), track=$('#psTrack');
+  if(!data?.length){strip.style.display='none';return;}
+  const logos=data.filter(p=>p.logo_url);
+  if(!logos.length){strip.style.display='none';return;}
+  // doublé pour un défilement en boucle sans couture
+  const items=[...logos,...logos].map(p=>`<img src="${esc(p.logo_url)}" alt="${esc(p.nom)}" loading="lazy">`).join('');
+  track.innerHTML=items;
+  strip.style.display='block';
 }
 
 const loaders={
@@ -848,6 +872,7 @@ async function loadPartenaires(){
         <button class="btn btn-danger btn-sm" onclick="delRow('partenaires','${p.id}','partenaires')">✕</button>
       </div>
     </div>`).join(''):emptyState('Partenaires à venir.');
+  loadPartnersStrip();
 }
 
 /* ---- Pages texte ---- */
@@ -1580,6 +1605,7 @@ function hideSplash(){
   await loadConfig();
   await loadCats();
   loadPilotes();
+  loadPartnersStrip();
   loadHome();
   hideSplash();
 })();
