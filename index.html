@@ -747,35 +747,41 @@ function calItem(e){
     </div>
   </div>`;
 }
-/* Génère un .ics (Google Agenda / Apple / Outlook) avec rappel 1 jour avant */
+/* Propose Google Agenda (lien direct) OU .ics (Apple/Outlook/autre) */
 async function addToCalendar(id){
   const {data:e}=await sb.from('evenements').select('*').eq('id',id).single();
   if(!e)return;
-  const dt=d=>{const x=new Date(d);return x.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';};
-  const start=dt(e.date_debut);
-  const end=e.date_fin?dt(e.date_fin):dt(new Date(new Date(e.date_debut).getTime()+2*3600*1000));
-  const uid=id+'@mcmorfalous';
+  _calEvent=e;
+  openModal('Ajouter à mon calendrier',`
+    <p style="color:var(--ink-dim);margin-bottom:18px">Choisis ton agenda :</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" onclick="calGoogle()">📅 Google Agenda</button>
+      <button class="btn btn-ghost" onclick="calIcs()">🍎 Apple / Outlook / autre (fichier .ics)</button>
+    </div>
+    <p style="color:var(--ink-dim);font-size:.82rem;margin-top:16px">Le fichier .ics fonctionne avec Apple Calendrier, Outlook et la plupart des agendas.</p>`);
+}
+let _calEvent=null;
+function calDates(e){
+  const fmt=d=>new Date(d).toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const start=fmt(e.date_debut);
+  const end=e.date_fin?fmt(e.date_fin):fmt(new Date(new Date(e.date_debut).getTime()+2*3600*1000));
+  return {start,end};
+}
+function calGoogle(){
+  const e=_calEvent;if(!e)return;const {start,end}=calDates(e);
+  const params=new URLSearchParams({action:'TEMPLATE',text:e.titre||'Événement MC Les Morfalous',dates:start+'/'+end,details:e.description||'',location:e.lieu||''});
+  window.open('https://calendar.google.com/calendar/render?'+params.toString(),'_blank','noopener');
+  closeModal();
+}
+function calIcs(){
+  const e=_calEvent;if(!e)return;const {start,end}=calDates(e);
   const esc2=s=>(s||'').replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n');
-  const ics=[
-    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MC Les Morfalous//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    'UID:'+uid,
-    'DTSTAMP:'+dt(new Date()),
-    'DTSTART:'+start,
-    'DTEND:'+end,
-    'SUMMARY:'+esc2(e.titre),
-    'DESCRIPTION:'+esc2(e.description||''),
-    'LOCATION:'+esc2(e.lieu||''),
-    'BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:'+esc2('Rappel : '+e.titre),'END:VALARM',
-    'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:'+esc2('Bientôt : '+e.titre),'END:VALARM',
-    'END:VEVENT','END:VCALENDAR'
-  ].join('\r\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MC Les Morfalous//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT','UID:'+e.id+'@mcmorfalous','DTSTAMP:'+start,'DTSTART:'+start,'DTEND:'+end,'SUMMARY:'+esc2(e.titre),'DESCRIPTION:'+esc2(e.description||''),'LOCATION:'+esc2(e.lieu||''),'BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:'+esc2('Rappel : '+e.titre),'END:VALARM','BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:'+esc2('Bientôt : '+e.titre),'END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
   const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=(e.titre||'evenement').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.ics';
   a.click();URL.revokeObjectURL(a.href);
-  toast('Événement ajouté ! Ouvre le fichier pour l\'importer 📅');
+  closeModal();toast('Fichier téléchargé ! Ouvre-le pour l\'ajouter 📅');
 }
 async function loadCalendar(){
   const {data}=await sb.from('evenements').select('*').order('date_debut');
