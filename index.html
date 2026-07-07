@@ -955,14 +955,17 @@ async function openResultImages(courseId){
   await ensureLogoLoaded();
   _partImgs=[];
   if(parts?.length){for(const p of parts){const im=await loadImg(p.logo_url);if(im)_partImgs.push(im);}}
-  _genState={course,cats:cats||[],fmt:'post',withParts:_partImgs.length>0,index:0};
-  const total=1+(cats?.length||0);
+  // précharger les fonds image (couverture + catégorie) si ce sont des photos
+  for(const key of [cfg.bg_couverture,cfg.bg_categorie]){
+    if(key&&key.startsWith('img:')&&!_bgImgs[key]){const im=await loadImg(key.slice(4));if(im)_bgImgs[key]=im;}
+  }
+  _genState={course,cats:cats||[],fmt:'post',withParts:_partImgs.length>0,index:0,courseId};
   openModal('Images de résultats',`
     <div class="subtabs" style="margin-bottom:12px">
       <button class="active" id="gf-post" onclick="setGenFmt('post',this)">Post carré</button>
       <button id="gf-story" onclick="setGenFmt('story',this)">Story</button>
     </div>
-    ${_partImgs.length?`<label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:.9rem"><input type="checkbox" id="gf-parts" ${_partImgs.length?'checked':''} onchange="toggleParts(this.checked)" style="width:auto"> Afficher la bande partenaires</label>`:'<p style="color:var(--ink-dim);font-size:.85rem;margin-bottom:12px">Astuce : ajoute des partenaires (onglet Résultats de l\'admin) pour la bande en bas.</p>'}
+    ${_partImgs.length?`<label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:.9rem"><input type="checkbox" id="gf-parts" ${_partImgs.length?'checked':''} onchange="toggleParts(this.checked)" style="width:auto"> Afficher la bande partenaires</label>`:'<p style="color:var(--ink-dim);font-size:.85rem;margin-bottom:12px">Astuce : ajoute des partenaires (onglet Part. résultats de l\'admin) pour la bande en bas.</p>'}
     <div class="res-preview-wrap">
       <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:6px">
         <button class="btn btn-ghost btn-sm" onclick="genPrev(-1)">←</button>
@@ -974,11 +977,61 @@ async function openResultImages(courseId){
         <button class="btn btn-primary" onclick="downloadCurrent()">📥 Cette image</button>
         <button class="btn btn-primary" onclick="downloadAll()">📥 Tout télécharger</button>
       </div>
+      ${isAdmin?'<button class="btn btn-ghost btn-sm" onclick="openBgSettings()">🎨 Changer les fonds</button>':''}
     </div>`);
   renderGen();
 }
 function setGenFmt(fmt,btn){_genState.fmt=fmt;$$('#gf-post,#gf-story').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderGen();}
 function toggleParts(v){_genState.withParts=v;renderGen();}
+/* Réglage des fonds (mémorisés dans config) */
+function bgOptionsHtml(cur){
+  const presets=Object.entries(BG_PRESETS).map(([k,v])=>`<option value="${k}" ${cur===k?'selected':''}>${v.label}</option>`).join('');
+  const isImg=cur&&cur.startsWith('img:');
+  return `${presets}<option value="__img" ${isImg?'selected':''}>📷 Ma photo…</option>`;
+}
+async function openBgSettings(){
+  await loadConfig();
+  openModal('Fonds des images',`
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Choisis un fond pour la couverture et un pour les catégories. Ils seront mémorisés.</p>
+    <div class="field"><label>Fond de la couverture</label>
+      <select id="bg-couv" onchange="onBgSelect('couv')">${bgOptionsHtml(cfg.bg_couverture)}</select>
+      <div id="bg-couv-up" style="margin-top:8px;${cfg.bg_couverture&&cfg.bg_couverture.startsWith('img:')?'':'display:none'}">
+        <input id="bg-couv-file" type="file" accept="image/*" style="display:none" onchange="handleUpload('bg-couv-file','bg-couv-url','fonds')">
+        <input id="bg-couv-url" type="hidden" value="${cfg.bg_couverture&&cfg.bg_couverture.startsWith('img:')?esc(cfg.bg_couverture.slice(4)):''}">
+        <button id="bg-couv-file-btn" type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('bg-couv-file').click()">Choisir une photo</button>
+      </div>
+    </div>
+    <div class="field"><label>Fond des catégories</label>
+      <select id="bg-cat" onchange="onBgSelect('cat')">${bgOptionsHtml(cfg.bg_categorie)}</select>
+      <div id="bg-cat-up" style="margin-top:8px;${cfg.bg_categorie&&cfg.bg_categorie.startsWith('img:')?'':'display:none'}">
+        <input id="bg-cat-file" type="file" accept="image/*" style="display:none" onchange="handleUpload('bg-cat-file','bg-cat-url','fonds')">
+        <input id="bg-cat-url" type="hidden" value="${cfg.bg_categorie&&cfg.bg_categorie.startsWith('img:')?esc(cfg.bg_categorie.slice(4)):''}">
+        <button id="bg-cat-file-btn" type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('bg-cat-file').click()">Choisir une photo</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveBgSettings()">Enregistrer les fonds</button>`);
+}
+function onBgSelect(which){
+  const sel=$('#bg-'+which);const up=$('#bg-'+which+'-up');
+  up.style.display=sel.value==='__img'?'block':'none';
+}
+async function saveBgSettings(){
+  const resolve=(which)=>{
+    const sel=$('#bg-'+which).value;
+    if(sel==='__img'){const url=$('#bg-'+which+'-url').value.trim();return url?'img:'+url:'degrade';}
+    return sel;
+  };
+  const bg_couverture=resolve('couv'), bg_categorie=resolve('cat');
+  const {error}=await sb.from('config').upsert([{cle:'bg_couverture',valeur:bg_couverture},{cle:'bg_categorie',valeur:bg_categorie}],{onConflict:'cle'});
+  if(error)return toast(error.message,true);
+  await loadConfig();
+  // précharger les nouvelles images
+  for(const key of [bg_couverture,bg_categorie]){if(key.startsWith('img:')&&!_bgImgs[key]){const im=await loadImg(key.slice(4));if(im)_bgImgs[key]=im;}}
+  toast('Fonds enregistrés');
+  // rouvrir le générateur avec les nouveaux fonds
+  const cid=_genState?.courseId;
+  if(cid)openResultImages(cid);else closeModal();
+}
 function genPrev(d){
   const total=1+_genState.cats.length;
   _genState.index=(_genState.index+d+total)%total;
@@ -992,9 +1045,37 @@ function renderGen(){
   else drawCategory(_genState.course,_genState.cats[i-1],_genState.fmt,_genState.withParts);
 }
 
-function bg(ctx,W,H){
-  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#102f42');g.addColorStop(1,'#0a1a24');
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+/* Fonds prédéfinis dessinés en canvas (aux couleurs du club) */
+const BG_PRESETS={
+  degrade:{label:'Dégradé club',draw:(ctx,W,H)=>{const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#102f42');g.addColorStop(1,'#0a1a24');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}},
+  radial:{label:'Halo cyan',draw:(ctx,W,H)=>{ctx.fillStyle='#0a1a24';ctx.fillRect(0,0,W,H);const g=ctx.createRadialGradient(W/2,H*0.35,0,W/2,H*0.35,H*0.7);g.addColorStop(0,'#16506e');g.addColorStop(1,'#0a1a24');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}},
+  diagonal:{label:'Rayures piste',draw:(ctx,W,H)=>{ctx.fillStyle='#0d2635';ctx.fillRect(0,0,W,H);ctx.save();for(let x=-H;x<W+H;x+=90){ctx.fillStyle='rgba(92,198,232,.06)';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+45,0);ctx.lineTo(x+45-H,H);ctx.lineTo(x-H,H);ctx.closePath();ctx.fill();}ctx.restore();}},
+  carbone:{label:'Carbone sombre',draw:(ctx,W,H)=>{ctx.fillStyle='#0e1418';ctx.fillRect(0,0,W,H);ctx.fillStyle='rgba(92,198,232,.04)';for(let y=0;y<H;y+=6)for(let x=(y/6%2)*6;x<W;x+=12)ctx.fillRect(x,y,6,3);const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(23,65,90,.5)');g.addColorStop(1,'rgba(10,26,36,.2)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}},
+};
+/* images de fond chargées (photo perso ou preset image) : clé -> Image */
+let _bgImgs={};
+function drawBackground(ctx,W,H,bgKey){
+  // bgKey : 'degrade'|'radial'|... ou 'img:URL'
+  if(bgKey&&bgKey.startsWith('img:')){
+    const img=_bgImgs[bgKey];
+    if(img){
+      // cover : remplir tout le canvas en gardant le ratio
+      const r=Math.max(W/img.width,H/img.height);
+      const w=img.width*r,h=img.height*r;
+      ctx.drawImage(img,(W-w)/2,(H-h)/2,w,h);
+      // calque sombre pour lisibilité
+      ctx.fillStyle='rgba(10,26,36,.62)';ctx.fillRect(0,0,W,H);
+      // léger dégradé bas pour ancrer le texte
+      const g=ctx.createLinearGradient(0,H*0.4,0,H);g.addColorStop(0,'rgba(10,26,36,0)');g.addColorStop(1,'rgba(10,26,36,.55)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      return;
+    }
+    // image pas encore chargée : fallback dégradé
+  }
+  (BG_PRESETS[bgKey]||BG_PRESETS.degrade).draw(ctx,W,H);
+}
+function bg(ctx,W,H,bgKey){
+  drawBackground(ctx,W,H,bgKey||'degrade');
+  // bande rubalise haut (toujours)
   ctx.save();for(let x=-H;x<W+H;x+=28){ctx.fillStyle='#5cc6e8';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+14,0);ctx.lineTo(x+14-40,40);ctx.lineTo(x-40,40);ctx.closePath();ctx.fill();}ctx.restore();
 }
 function drawLogo(ctx,cx,y,size){
@@ -1018,7 +1099,7 @@ function drawPartners(ctx,W,H,withParts){
 function drawCover(course,fmt,withParts){
   const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
-  bg(ctx,W,H);
+  bg(ctx,W,H,cfg.bg_couverture||'degrade');
   const bottomY=drawPartners(ctx,W,H,withParts);
   const contentBottom=(withParts&&_partImgs.length?bottomY:H);
   const ls=story?320:250;let y=story?190:110;
@@ -1045,7 +1126,7 @@ function drawCover(course,fmt,withParts){
 function drawCategory(course,cat,fmt,withParts){
   const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
-  bg(ctx,W,H);
+  bg(ctx,W,H,cfg.bg_categorie||'degrade');
   const bottomY=drawPartners(ctx,W,H,withParts);
   const contentBottom=(withParts&&_partImgs.length?bottomY:H);
   const ls=story?175:145;let y=story?100:64;
