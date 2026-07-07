@@ -1073,10 +1073,21 @@ function drawBackground(ctx,W,H,bgKey){
   }
   (BG_PRESETS[bgKey]||BG_PRESETS.degrade).draw(ctx,W,H);
 }
+function isCustomBg(key){return key&&key.startsWith('img:');}
 function bg(ctx,W,H,bgKey){
-  drawBackground(ctx,W,H,bgKey||'degrade');
-  // bande rubalise haut (toujours)
-  ctx.save();for(let x=-H;x<W+H;x+=28){ctx.fillStyle='#5cc6e8';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+14,0);ctx.lineTo(x+14-40,40);ctx.lineTo(x-40,40);ctx.closePath();ctx.fill();}ctx.restore();
+  drawBackgroundRaw(ctx,W,H,bgKey||'degrade');
+  // rubalise cyan uniquement sur les fonds "presets" (les images perso ont déjà leur déco)
+  if(!isCustomBg(bgKey)){
+    ctx.save();for(let x=-H;x<W+H;x+=28){ctx.fillStyle='#5cc6e8';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+14,0);ctx.lineTo(x+14-40,40);ctx.lineTo(x-40,40);ctx.closePath();ctx.fill();}ctx.restore();
+  }
+}
+/* dessine le fond SANS calque sombre (pour les images perso qui doivent rester nettes) */
+function drawBackgroundRaw(ctx,W,H,bgKey){
+  if(isCustomBg(bgKey)){
+    const img=_bgImgs[bgKey];
+    if(img){const r=Math.max(W/img.width,H/img.height);const w=img.width*r,h=img.height*r;ctx.drawImage(img,(W-w)/2,(H-h)/2,w,h);return;}
+  }
+  (BG_PRESETS[bgKey]||BG_PRESETS.degrade).draw(ctx,W,H);
 }
 function drawLogo(ctx,cx,y,size){
   if(!_logoImg)return;
@@ -1099,25 +1110,38 @@ function drawPartners(ctx,W,H,withParts){
 function drawCover(course,fmt,withParts){
   const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
-  bg(ctx,W,H,cfg.bg_couverture||'degrade');
+  const bgKey=cfg.bg_couverture||'degrade';
+  bg(ctx,W,H,bgKey);
+  // MODE IMAGE FIXE : la couv a déjà tout, on ajoute juste "LIEU ANNÉE" en bas
+  if(isCustomBg(bgKey)){
+    const sub=[course.lieu,course.saison].filter(Boolean).join(' ').toUpperCase();
+    if(sub){
+      ctx.textAlign='center';
+      // position bas, entre les flèches (ajustable ensuite)
+      const yTxt=H*(story?0.90:0.88);
+      ctx.save();
+      ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.shadowOffsetY=3;
+      ctx.fillStyle='#ffffff';ctx.font=`900 ${story?58:64}px 'Saira Condensed',sans-serif`;
+      ctx.fillText(sub,cx,yTxt);
+      ctx.restore();
+    }
+    return;
+  }
+  // MODE GÉNÉRÉ (fonds presets) : on dessine tout
   const bottomY=drawPartners(ctx,W,H,withParts);
   const contentBottom=(withParts&&_partImgs.length?bottomY:H);
   const ls=story?320:250;let y=story?190:110;
   drawLogo(ctx,cx,y,ls);y+=ls+(story?100:64);
   ctx.textAlign='center';
-  // événement
   ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?46:40}px 'Saira Condensed',sans-serif`;
   wrapText(ctx,(course.evenement||'').toUpperCase(),cx,y,W-160,story?54:46);y+=story?130:104;
-  // grand mot RÉSULTATS avec ombre
   ctx.save();
   ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=18;ctx.shadowOffsetY=8;
   ctx.fillStyle='#f1f7fa';ctx.font=`900 ${story?170:135}px 'Saira Condensed',sans-serif`;
   ctx.fillText('RÉSULTATS',cx,y);ctx.restore();
   y+=story?40:28;
-  // barre rouge sous le titre
   const barW=story?520:420;ctx.fillStyle='#e8472e';roundRect(ctx,cx-barW/2,y,barW,story?10:8,4);ctx.fill();
   y+=story?70:54;
-  // lieu · saison dans un bandeau
   const sub=[course.lieu,course.saison].filter(Boolean).join(' · ').toUpperCase();
   if(sub){ctx.font=`800 ${story?54:44}px 'Saira Condensed',sans-serif`;const tw=ctx.measureText(sub).width;const pad=story?40:32,bh=story?76:62;ctx.fillStyle='#17415a';roundRect(ctx,cx-tw/2-pad,y-bh*0.72,tw+pad*2,bh,10);ctx.fill();ctx.fillStyle='#f1f7fa';ctx.fillText(sub,cx,y);}
   ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?28:24}px Inter,sans-serif`;
@@ -1126,13 +1150,60 @@ function drawCover(course,fmt,withParts){
 function drawCategory(course,cat,fmt,withParts){
   const F=IMG_FORMATS[fmt],cv=$('#resCanvas');cv.width=F.w;cv.height=F.h;
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
-  bg(ctx,W,H,cfg.bg_categorie||'degrade');
+  const bgKey=cfg.bg_categorie||'degrade';
+  bg(ctx,W,H,bgKey);
+  const custom=isCustomBg(bgKey);
+  const cl=Array.isArray(cat.classement)?cat.classement.slice().sort((a,b)=>a.place-b.place):[];
+
+  if(custom){
+    // MODE FOND VAGUES : le fond a déjà logo + partenaires. On ajoute titre catégorie + tableau.
+    ctx.textAlign='center';
+    // le logo du fond occupe le haut ~28%, on démarre le titre en dessous
+    let y=H*(story?0.30:0.34);
+    const catTxt=(cat.nom||'').toUpperCase();
+    ctx.font=`900 ${story?76:64}px 'Saira Condensed',sans-serif`;
+    const ctw=Math.min(ctx.measureText(catTxt).width,W-140);
+    const cbh=story?100:86, cpad=story?46:38;
+    ctx.fillStyle='#0d3a4f';roundRect(ctx,cx-ctw/2-cpad,y-cbh*0.7,ctw+cpad*2,cbh,12);ctx.fill();
+    ctx.fillStyle='#ffffff';wrapText(ctx,catTxt,cx,y,W-160,story?78:66);y+=story?70:56;
+    // tableau blanc (style MINICROSS)
+    const px=story?80:60, pw=W-px*2;
+    const areaBottom=H*(story?0.90:0.86); // au-dessus de la bande partenaires du fond
+    const headH=story?60:50;
+    const rowH=Math.min(story?86:72,(areaBottom-y-headH)/Math.max(cl.length,1));
+    const panelH=headH+rowH*cl.length+16;
+    ctx.fillStyle='rgba(255,255,255,.94)';roundRect(ctx,px,y,pw,panelH,14);ctx.fill();
+    const lx=px+(story?34:26), rx=px+pw-(story?34:26);
+    // en-tête
+    ctx.fillStyle='#0d3a4f';roundRect(ctx,px,y,pw,headH,14);ctx.fill();ctx.fillStyle='#0d3a4f';ctx.fillRect(px,y+headH-14,pw,14);
+    let ty=y+headH*0.66;
+    ctx.textAlign='left';ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?28:24}px 'Saira Condensed',sans-serif`;
+    ctx.fillText('N°',lx,ty);ctx.fillText('PILOTE',lx+(story?100:82),ty);
+    ctx.textAlign='right';ctx.fillText('PLACE',rx,ty);
+    let ry=y+headH;
+    cl.forEach((p,idx)=>{
+      if(idx%2===1){ctx.fillStyle='rgba(13,58,79,.06)';ctx.fillRect(px+2,ry,pw-4,rowH);}
+      const baseline=ry+rowH*0.64;
+      ctx.textAlign='left';
+      ctx.fillStyle='#c96a1e';ctx.font=`700 ${story?34:28}px 'Saira Condensed',sans-serif`;
+      ctx.fillText(p.num?'#'+p.num:'—',lx,baseline);
+      ctx.fillStyle='#12303f';ctx.font=`400 ${story?34:28}px Inter,sans-serif`;
+      ctx.fillText(p.nom||'',lx+(story?100:82),baseline);
+      ctx.textAlign='right';
+      const medal=p.place===1?'#e0a015':p.place===2?'#8a8a8a':p.place===3?'#b06a2c':'#12303f';
+      ctx.fillStyle=medal;ctx.font=`900 ${story?42:34}px 'Saira Condensed',sans-serif`;
+      ctx.fillText(p.place+ordinal(p.place),rx,baseline);
+      ry+=rowH;
+    });
+    return;
+  }
+
+  // MODE GÉNÉRÉ (fonds presets) : on dessine tout (logo, titre, panneau sombre)
   const bottomY=drawPartners(ctx,W,H,withParts);
   const contentBottom=(withParts&&_partImgs.length?bottomY:H);
   const ls=story?175:145;let y=story?100:64;
   drawLogo(ctx,cx,y,ls);y+=ls+(story?46:32);
   ctx.textAlign='center';
-  // titre catégorie dans un bandeau cyan
   const catTxt=(cat.nom||'').toUpperCase();
   ctx.font=`900 ${story?72:60}px 'Saira Condensed',sans-serif`;
   const ctw=Math.min(ctx.measureText(catTxt).width,W-140);
@@ -1141,8 +1212,6 @@ function drawCategory(course,cat,fmt,withParts){
   ctx.fillStyle='#0a1a24';wrapText(ctx,catTxt,cx,y,W-160,story?74:62);y+=story?58:46;
   ctx.fillStyle='#9fb8c4';ctx.font=`600 ${story?28:24}px Inter,sans-serif`;
   ctx.fillText((course.evenement||'')+(course.saison?' '+course.saison:''),cx,y);y+=story?64:50;
-  // panneau tableau
-  const cl=Array.isArray(cat.classement)?cat.classement.slice().sort((a,b)=>a.place-b.place):[];
   const px=story?70:52, pw=W-px*2;
   const areaBottom=contentBottom-(story?86:66);
   const headH=story?58:48;
@@ -1151,7 +1220,6 @@ function drawCategory(course,cat,fmt,withParts){
   ctx.fillStyle='rgba(16,38,52,.75)';roundRect(ctx,px,y,pw,panelH,14);ctx.fill();
   ctx.strokeStyle='#234a60';ctx.lineWidth=1.5;roundRect(ctx,px,y,pw,panelH,14);ctx.stroke();
   const lx=px+(story?34:26), rx=px+pw-(story?34:26);
-  // en-tête colonnes
   let ty=y+headH*0.66;
   ctx.fillStyle='#17415a';roundRect(ctx,px,y,pw,headH,14);ctx.fill();ctx.fillStyle='#17415a';ctx.fillRect(px,y+headH-14,pw,14);
   ctx.textAlign='left';ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?26:22}px 'Saira Condensed',sans-serif`;
