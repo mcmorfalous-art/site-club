@@ -162,6 +162,8 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .admin-bar.show{display:flex}
 .admin-only{display:none!important}
 body.is-admin .admin-only{display:inline-flex!important}
+body.is-admin .page.admin-only{display:none!important}
+body.is-admin .page.admin-only.active{display:block!important}
 body.is-admin .tile.admin-only{display:flex!important}
 body.is-admin .row-actions.admin-only{display:flex!important}
 .admin-tabs{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:14px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
@@ -170,6 +172,10 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 .admin-tabs button{flex:0 0 auto;white-space:nowrap;font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:8px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.95rem;border:1px solid transparent}
 .admin-tabs button.active{background:var(--accent);color:#0a1a24}
 .admin-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:12px}
+#page-admin{display:block!important}
+#page-admin.active{display:block!important}
+#page-admin>*{display:block;width:100%;float:none;clear:both}
+#page-admin .admin-tabs{display:flex!important;align-items:center}
 #adminContent{display:block;width:100%;clear:both}
 #adminTabs{width:100%}
 .admin-card h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;display:flex;align-items:center;gap:8px;margin-bottom:6px}
