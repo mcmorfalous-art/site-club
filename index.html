@@ -172,10 +172,7 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 .admin-tabs button{flex:0 0 auto;white-space:nowrap;font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:8px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.95rem;border:1px solid transparent}
 .admin-tabs button.active{background:var(--accent);color:#0a1a24}
 .admin-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:12px}
-#page-admin{display:block!important}
-#page-admin.active{display:block!important}
-#page-admin>*{display:block;width:100%;float:none;clear:both}
-#page-admin .admin-tabs{display:flex!important;align-items:center}
+#page-admin>*{width:100%;float:none;clear:both}
 #adminContent{display:block;width:100%;clear:both}
 #adminTabs{width:100%}
 .admin-card h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;display:flex;align-items:center;gap:8px;margin-bottom:6px}
@@ -564,7 +561,7 @@ function emptyState(m){return `<div class="empty"><div class="ico">🏍️</div>
 
 /* ============ NAV ============ */
 function go(page){
-  $$('.page').forEach(p=>p.classList.remove('active'));
+  $$('.page').forEach(p=>{p.classList.remove('active');if(p.id==='page-admin')p.style.display='none';});
   const el=$('#page-'+page);
   if(el){el.classList.add('active');if(page==='admin')el.style.display='block';}
   $$('.nav-links button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
