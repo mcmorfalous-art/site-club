@@ -164,8 +164,10 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 body.is-admin .admin-only{display:inline-flex!important}
 body.is-admin .tile.admin-only{display:flex!important}
 body.is-admin .row-actions.admin-only{display:flex!important}
-.admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:14px}
-.admin-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:8px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.95rem}
+.admin-tabs{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:14px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.admin-tabs::-webkit-scrollbar{height:6px}
+.admin-tabs::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.admin-tabs button{flex:0 0 auto;white-space:nowrap;font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:8px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.95rem;border:1px solid transparent}
 .admin-tabs button.active{background:var(--accent);color:#0a1a24}
 .admin-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:12px}
 .admin-card h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;display:flex;align-items:center;gap:8px;margin-bottom:6px}
