@@ -1114,17 +1114,22 @@ function drawCover(course,fmt,withParts){
   const ctx=cv.getContext('2d'),W=F.w,H=F.h,story=fmt==='story',cx=W/2;
   const bgKey=cfg.bg_couverture||'degrade';
   bg(ctx,W,H,bgKey);
-  // MODE IMAGE FIXE : la couv a déjà tout, on ajoute juste "LIEU ANNÉE" en bas
+  // MODE IMAGE FIXE : la couv a déjà tout, on ajoute juste "LIEU ANNÉE" en bas entre les flèches
   if(isCustomBg(bgKey)){
     const sub=[course.lieu,course.saison].filter(Boolean).join(' ').toUpperCase();
     if(sub){
       ctx.textAlign='center';
-      // position bas, entre les flèches (ajustable ensuite)
-      const yTxt=H*(story?0.90:0.88);
+      const yTxt=H*(story?0.90:0.885);
       ctx.save();
-      ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.shadowOffsetY=3;
-      ctx.fillStyle='#ffffff';ctx.font=`900 ${story?58:64}px 'Saira Condensed',sans-serif`;
-      ctx.fillText(sub,cx,yTxt);
+      ctx.translate(cx,yTxt);
+      ctx.transform(1,0,-0.18,1,0,0); // italique/oblique dynamique
+      ctx.font=`900 ${story?66:74}px 'Saira Condensed',sans-serif`;
+      // contour sombre épais
+      ctx.lineJoin='round';ctx.miterLimit=2;
+      ctx.strokeStyle='#0a1a24';ctx.lineWidth=story?12:14;ctx.strokeText(sub,0,0);
+      // léger halo cyan
+      ctx.shadowColor='rgba(92,198,232,.5)';ctx.shadowBlur=16;
+      ctx.fillStyle='#ffffff';ctx.fillText(sub,0,0);
       ctx.restore();
     }
     return;
@@ -1158,32 +1163,42 @@ function drawCategory(course,cat,fmt,withParts){
   const cl=Array.isArray(cat.classement)?cat.classement.slice().sort((a,b)=>a.place-b.place):[];
 
   if(custom){
-    // MODE FOND VAGUES : le fond a déjà logo + partenaires. On ajoute titre catégorie + tableau.
-    ctx.textAlign='center';
-    // le logo du fond occupe le haut ~28%, on démarre le titre en dessous
-    let y=H*(story?0.30:0.34);
+    // MODE FOND VAGUES : le fond a déjà logo + partenaires. Titre catégorie en haut à DROITE + tableau.
     const catTxt=(cat.nom||'').toUpperCase();
-    ctx.font=`900 ${story?76:64}px 'Saira Condensed',sans-serif`;
-    const ctw=Math.min(ctx.measureText(catTxt).width,W-140);
-    const cbh=story?100:86, cpad=story?46:38;
-    ctx.fillStyle='#0d3a4f';roundRect(ctx,cx-ctw/2-cpad,y-cbh*0.7,ctw+cpad*2,cbh,12);ctx.fill();
-    ctx.fillStyle='#ffffff';wrapText(ctx,catTxt,cx,y,W-160,story?78:66);y+=story?70:56;
-    // tableau blanc (style MINICROSS)
+    // titre en haut à droite, à l'opposé du logo, incliné (dynamique)
+    ctx.save();
+    const tx=W-(story?90:70), ty=H*(story?0.10:0.11);
+    ctx.textAlign='right';
+    ctx.font=`900 ${story?92:82}px 'Saira Condensed',sans-serif`;
+    const ctw=Math.min(ctx.measureText(catTxt).width,W*0.5);
+    ctx.translate(tx,ty);ctx.rotate(-0.05);
+    // plaque foncée inclinée derrière le titre
+    const cbh=story?100:90, cpad=story?30:26;
+    ctx.fillStyle='#0d3a4f';
+    ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=14;ctx.shadowOffsetY=5;
+    roundRect(ctx,-ctw-cpad*2,-cbh*0.72,ctw+cpad*2,cbh,10);ctx.fill();
+    ctx.shadowColor='transparent';
+    // liseré cyan en bas de la plaque
+    ctx.fillStyle='#5cc6e8';ctx.fillRect(-ctw-cpad*2,cbh*0.28-6,ctw+cpad*2,6);
+    ctx.fillStyle='#ffffff';ctx.fillText(catTxt,-cpad,0);
+    ctx.restore();
+    // tableau
+    let y=H*(story?0.24:0.26);
+    const cl2=cl;
     const px=story?80:60, pw=W-px*2;
-    const areaBottom=H*(story?0.90:0.86); // au-dessus de la bande partenaires du fond
+    const areaBottom=H*(story?0.90:0.86);
     const headH=story?60:50;
-    const rowH=Math.min(story?86:72,(areaBottom-y-headH)/Math.max(cl.length,1));
-    const panelH=headH+rowH*cl.length+16;
+    const rowH=Math.min(story?86:72,(areaBottom-y-headH)/Math.max(cl2.length,1));
+    const panelH=headH+rowH*cl2.length+16;
     ctx.fillStyle='rgba(255,255,255,.94)';roundRect(ctx,px,y,pw,panelH,14);ctx.fill();
     const lx=px+(story?34:26), rx=px+pw-(story?34:26);
-    // en-tête
     ctx.fillStyle='#0d3a4f';roundRect(ctx,px,y,pw,headH,14);ctx.fill();ctx.fillStyle='#0d3a4f';ctx.fillRect(px,y+headH-14,pw,14);
-    let ty=y+headH*0.66;
+    let tyh=y+headH*0.66;
     ctx.textAlign='left';ctx.fillStyle='#5cc6e8';ctx.font=`700 ${story?28:24}px 'Saira Condensed',sans-serif`;
-    ctx.fillText('N°',lx,ty);ctx.fillText('PILOTE',lx+(story?100:82),ty);
-    ctx.textAlign='right';ctx.fillText('PLACE',rx,ty);
+    ctx.fillText('N°',lx,tyh);ctx.fillText('PILOTE',lx+(story?100:82),tyh);
+    ctx.textAlign='right';ctx.fillText('PLACE',rx,tyh);
     let ry=y+headH;
-    cl.forEach((p,idx)=>{
+    cl2.forEach((p,idx)=>{
       if(idx%2===1){ctx.fillStyle='rgba(13,58,79,.06)';ctx.fillRect(px+2,ry,pw-4,rowH);}
       const baseline=ry+rowH*0.64;
       ctx.textAlign='left';
