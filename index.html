@@ -160,9 +160,10 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .loading{text-align:center;padding:40px;color:var(--ink-dim)}
 .admin-bar{background:var(--accent);color:#0a1a24;padding:10px 20px;display:none;align-items:center;gap:14px;font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.92rem}
 .admin-bar.show{display:flex}
-.admin-only{display:none}
-body.is-admin .admin-only{display:inline-flex}
-body.is-admin .tile.admin-only{display:flex}
+.admin-only{display:none!important}
+body.is-admin .admin-only{display:inline-flex!important}
+body.is-admin .tile.admin-only{display:flex!important}
+body.is-admin .row-actions.admin-only{display:flex!important}
 .admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:14px}
 .admin-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:8px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.95rem}
 .admin-tabs button.active{background:var(--accent);color:#0a1a24}
@@ -929,7 +930,7 @@ async function loadResultats(){
 function ordinal(n){return n==1?'er':'e';}
 
 /* -------- Générateur d'images (couverture + 1 par catégorie) -------- */
-const IMG_FORMATS={story:{w:1080,h:1920},post:{w:1080,h:1080}};
+const IMG_FORMATS={portrait:{w:1080,h:1350},post:{w:1080,h:1080},story:{w:1080,h:1920}};
 let _genState=null; // {course, cats, partenaires, fmt, withParts, index}
 let _logoImg=null, _partImgs=[];
 
@@ -959,10 +960,11 @@ async function openResultImages(courseId){
   for(const key of [cfg.bg_couverture,cfg.bg_categorie]){
     if(key&&key.startsWith('img:')&&!_bgImgs[key]){const im=await loadImg(key.slice(4));if(im)_bgImgs[key]=im;}
   }
-  _genState={course,cats:cats||[],fmt:'post',withParts:_partImgs.length>0,index:0,courseId};
+  _genState={course,cats:cats||[],fmt:'portrait',withParts:_partImgs.length>0,index:0,courseId};
   openModal('Images de résultats',`
     <div class="subtabs" style="margin-bottom:12px">
-      <button class="active" id="gf-post" onclick="setGenFmt('post',this)">Post carré</button>
+      <button class="active" id="gf-portrait" onclick="setGenFmt('portrait',this)">Portrait</button>
+      <button id="gf-post" onclick="setGenFmt('post',this)">Carré</button>
       <button id="gf-story" onclick="setGenFmt('story',this)">Story</button>
     </div>
     ${_partImgs.length?`<label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:.9rem"><input type="checkbox" id="gf-parts" ${_partImgs.length?'checked':''} onchange="toggleParts(this.checked)" style="width:auto"> Afficher la bande partenaires</label>`:'<p style="color:var(--ink-dim);font-size:.85rem;margin-bottom:12px">Astuce : ajoute des partenaires (onglet Part. résultats de l\'admin) pour la bande en bas.</p>'}
@@ -981,7 +983,7 @@ async function openResultImages(courseId){
     </div>`);
   renderGen();
 }
-function setGenFmt(fmt,btn){_genState.fmt=fmt;$$('#gf-post,#gf-story').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderGen();}
+function setGenFmt(fmt,btn){_genState.fmt=fmt;$$('#gf-portrait,#gf-post,#gf-story').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderGen();}
 function toggleParts(v){_genState.withParts=v;renderGen();}
 /* Réglage des fonds (mémorisés dans config) */
 function bgOptionsHtml(cur){
@@ -1386,8 +1388,9 @@ async function submitInscription(eventId){
 /* ============ SUPPRESSION GÉNÉRIQUE ============ */
 async function delRow(table,id,reload){
   if(!confirm('Supprimer définitivement ?'))return;
-  const {error}=await sb.from(table).delete().eq('id',id);
+  const {data,error}=await sb.from(table).delete().eq('id',id).select();
   if(error)return toast(error.message,true);
+  if(!data||data.length===0){toast('Suppression refusée (droits admin manquants sur cette table)',true);return;}
   toast('Supprimé');loaders[reload]?.();if($('#page-admin').classList.contains('active'))loadAdmin();
 }
 /* ============ FORMULAIRES ADMIN ============ */
