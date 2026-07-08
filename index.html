@@ -1494,7 +1494,8 @@ async function openCatForm(id,courseId){
   const pilotesDatalist=pilotesDB.map(p=>`<option value="${esc(p.nom)}">${p.num?'#'+esc(p.num):''}</option>`).join('');
   openModal(id?'Modifier la catégorie':'Nouvelle catégorie',`
     <div class="field"><label>Catégorie</label>
-      <select id="cat-nom">${catOptions||'<option value="">— aucune catégorie, ajoute-en dans l onglet Catégories —</option>'}</select>
+      <select id="cat-nom" onchange="onCatSelect()">${catOptions}<option value="__new" ${cats.length?'':'selected'}>+ Nouvelle catégorie…</option></select>
+      <input id="cat-nom-new" placeholder="Nom de la nouvelle catégorie" style="margin-top:8px;${cats.length?'display:none':''}">
     </div>
     ${fld("Ordre d'affichage",'cat-ordre',cat.ordre??0,'number')}
     <datalist id="pilotesList">${pilotesDatalist}</datalist>
@@ -1521,6 +1522,13 @@ function addPiloteRow(p={}){
     <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
   $('#cat-pilotes').appendChild(div);
 }
+/* affiche le champ libre quand on choisit "+ Nouvelle catégorie" */
+function onCatSelect(){
+  const sel=$('#cat-nom'), inp=$('#cat-nom-new');
+  if(!sel||!inp)return;
+  inp.style.display=sel.value==='__new'?'block':'none';
+  if(sel.value==='__new')inp.focus();
+}
 /* auto-remplit le n° si le nom correspond à un pilote connu */
 function onPiloteName(inp){
   const found=pilotesDB.find(p=>p.nom===inp.value);
@@ -1539,9 +1547,17 @@ async function saveCat(id,courseId){
     nom:row.querySelector('[data-nom]').value.trim(),
     num:row.querySelector('[data-num]').value.trim()||null
   })).filter(p=>p.nom).sort((a,b)=>a.place-b.place);
-  const p={nom:$('#cat-nom').value.trim(),ordre:parseInt($('#cat-ordre').value)||0,classement};
-  if(!p.nom)return toast('Choisis une catégorie',true);
+  // catégorie : soit choisie dans le menu, soit nouvelle saisie
+  let catNom=$('#cat-nom').value;
+  if(catNom==='__new'){catNom=$('#cat-nom-new').value.trim();}
+  catNom=(catNom||'').trim();
+  if(!catNom)return toast('Choisis ou saisis une catégorie',true);
   if(!courseId)return toast('Course manquante',true);
+  // si nouvelle catégorie inconnue, on l'ajoute aussi à la liste des catégories réutilisables
+  if(!cats.find(c=>c.nom===catNom)){
+    await sb.from('categories').insert({nom:catNom,ordre:(cats.length+1)*10}).then(()=>{});
+  }
+  const p={nom:catNom,ordre:parseInt($('#cat-ordre').value)||0,classement};
   let error;
   if(id){({error}=await sb.from('resultats_categories').update(p).eq('id',id));}
   else{({error}=await sb.from('resultats_categories').insert({...p,course_id:courseId}));}
@@ -1552,7 +1568,7 @@ async function saveCat(id,courseId){
     if(!exists){await sb.from('pilotes').insert({nom:pil.nom,num:pil.num,categorie:p.nom}).then(()=>{});}
     else if(pil.num&&!exists.num){await sb.from('pilotes').update({num:pil.num}).eq('id',exists.id);}
   }
-  loadPilotes();
+  loadPilotes();loadCats();
   closeModal();toast('Catégorie enregistrée');loadResultats();
 }
 
