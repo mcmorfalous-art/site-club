@@ -1388,21 +1388,41 @@ async function envoyerSoumission(type){
 async function openInscription(eventId){
   const {data:e}=await sb.from('evenements').select('*').eq('id',eventId).single();
   if(!e)return;
+  const champs=Array.isArray(e.champs_inscription)&&e.champs_inscription.length?e.champs_inscription:CHAMPS_PREDEF.slice(0,5).map(c=>({...c,required:c.key==='nom'}));
+  const fieldsHtml=champs.map((f,i)=>renderInscField(f,i)).join('');
   openModal('Inscription — '+e.titre,`
-    <div class="field"><label>Nom complet</label><input id="ins-nom" placeholder="Prénom Nom"></div>
-    <div class="field"><label>Email</label><input id="ins-email" type="email" placeholder="ton@email.fr"></div>
-    <div class="field"><label>Téléphone</label><input id="ins-tel" placeholder="06…"></div>
-    <div class="field"><label>Nombre de personnes</label><input id="ins-nb" type="number" value="1" min="1"></div>
-    <div class="field"><label>Commentaire (optionnel)</label><textarea id="ins-com"></textarea></div>
-    <button class="btn btn-primary" onclick="submitInscription('${eventId}')">Confirmer</button>`);
+    ${fieldsHtml}
+    <button class="btn btn-primary" onclick='submitInscription("${eventId}")'>Confirmer mon inscription</button>`);
+  _inscChamps=champs;
+}
+let _inscChamps=[];
+function renderInscField(f,i){
+  const req=f.required?' <span style="color:var(--hot)">*</span>':'';
+  const id='insf-'+i;
+  if(f.type==='textarea')return `<div class="field"><label>${esc(f.label)}${req}</label><textarea id="${id}"></textarea></div>`;
+  if(f.type==='number')return `<div class="field"><label>${esc(f.label)}${req}</label><input id="${id}" type="number" value="${f.key==='nb_personnes'?'1':''}" min="0"></div>`;
+  if(f.type==='choix')return `<div class="field"><label>${esc(f.label)}${req}</label><select id="${id}"><option value="">— choisir —</option>${(f.options||[]).map(o=>`<option>${esc(o)}</option>`).join('')}</select></div>`;
+  if(f.type==='checkbox')return `<label style="display:flex;gap:8px;align-items:center;margin-bottom:14px"><input type="checkbox" id="${id}" style="width:auto"> ${esc(f.label)}${req}</label>`;
+  const t=f.type==='email'?'email':f.type==='tel'?'tel':'text';
+  return `<div class="field"><label>${esc(f.label)}${req}</label><input id="${id}" type="${t}"></div>`;
 }
 async function submitInscription(eventId){
-  const nom=$('#ins-nom').value.trim();
-  if(!nom)return toast('Ton nom est requis',true);
-  const {error}=await sb.from('inscriptions').insert({
-    evenement_id:eventId,nom,email:$('#ins-email').value.trim()||null,
-    telephone:$('#ins-tel').value.trim()||null,nb_personnes:parseInt($('#ins-nb').value)||1,
-    commentaire:$('#ins-com').value.trim()||null});
+  const reponses={};
+  for(let i=0;i<_inscChamps.length;i++){
+    const f=_inscChamps[i];const el=$('#insf-'+i);if(!el)continue;
+    let val=f.type==='checkbox'?(el.checked?'Oui':'Non'):el.value.trim();
+    if(f.required&&f.type!=='checkbox'&&!val)return toast(`« ${f.label} » est obligatoire`,true);
+    reponses[f.label]=val;
+  }
+  // compat : on remplit aussi les colonnes connues si présentes
+  const nomChamp=_inscChamps.find(f=>f.key==='nom');
+  const row={evenement_id:eventId,reponses,
+    nom:nomChamp?reponses[nomChamp.label]:null,
+    nb_personnes:parseInt(reponses[_inscChamps.find(f=>f.key==='nb_personnes')?.label])||1,
+    email:reponses[_inscChamps.find(f=>f.key==='email')?.label]||null,
+    telephone:reponses[_inscChamps.find(f=>f.key==='telephone')?.label]||null,
+    commentaire:reponses[_inscChamps.find(f=>f.key==='commentaire')?.label]||null};
+  const {error}=await sb.from('inscriptions').insert(row);
   if(error)return toast(error.message,true);
   closeModal();toast('Inscription confirmée ! 🏁');
 }
@@ -1427,11 +1447,23 @@ function fileField(l,fileId,urlId,accept,prefix,cur=''){
   </div>`;
 }
 
-/* Événement (avec Doodle) */
+/* Champs prédéfinis disponibles pour le formulaire d'inscription */
+const CHAMPS_PREDEF=[
+  {key:'nom',label:'Nom / Prénom',type:'text'},
+  {key:'telephone',label:'Téléphone',type:'tel'},
+  {key:'email',label:'Email',type:'email'},
+  {key:'nb_personnes',label:'Nombre de personnes',type:'number'},
+  {key:'licence',label:'Numéro de licence',type:'text'},
+  {key:'commentaire',label:'Commentaire',type:'textarea'},
+];
+let _formChamps=[]; // champs en cours d'édition
+
+/* Événement (avec Doodle + constructeur de formulaire) */
 async function openEventForm(id){
   let e={};if(id){const{data}=await sb.from('evenements').select('*').eq('id',id).single();e=data||{};}
   const dt=e.date_debut?new Date(e.date_debut).toISOString().slice(0,16):'';
   const df=e.date_fin?new Date(e.date_fin).toISOString().slice(0,16):'';
+  _formChamps=Array.isArray(e.champs_inscription)?JSON.parse(JSON.stringify(e.champs_inscription)):[];
   openModal(id?"Modifier l'événement":'Nouvel événement',`
     ${fld('Titre','ev-titre',e.titre)}
     ${ar('Description','ev-desc',e.description)}
@@ -1440,12 +1472,77 @@ async function openEventForm(id){
     ${fld('Début','ev-debut',dt,'datetime-local')}
     ${fld('Fin (optionnel)','ev-fin',df,'datetime-local')}
     ${fld('Lien Doodle (ouvertures/travaux)','ev-doodle',e.lien_doodle,'text','https://doodle.com/...')}
-    <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input type="checkbox" id="ev-ins" ${e.inscriptions?'checked':''} style="width:auto"> Inscription directe sur le site (AG/repas)</label>
-    <p style="color:var(--ink-dim);font-size:.82rem;margin-bottom:16px">Astuce : mets un lien Doodle pour les ouvertures/travaux, ou coche l'inscription site pour les AG/repas.</p>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="ev-ins" ${e.inscriptions?'checked':''} style="width:auto" onchange="toggleFormBuilder(this.checked)"> Inscription directe sur le site</label>
+    <div id="formBuilder" style="${e.inscriptions?'':'display:none'};border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px">
+      <h4 style="font-family:var(--font-disp);text-transform:uppercase;font-size:1rem;margin-bottom:10px">📋 Champs du formulaire</h4>
+      <div id="champsList"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <select id="champPredef" style="background:var(--surface-2);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:8px;font-size:.88rem">
+          <option value="">+ Champ prédéfini…</option>
+          ${CHAMPS_PREDEF.map(c=>`<option value="${c.key}">${c.label}</option>`).join('')}
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addChampPredef()">Ajouter</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addChampPerso()">+ Champ perso</button>
+      </div>
+    </div>
     <button class="btn btn-primary" onclick="saveEvent('${id||''}')">Enregistrer</button>`);
+  renderChamps();
+}
+function toggleFormBuilder(on){$('#formBuilder').style.display=on?'block':'none';}
+function renderChamps(){
+  const c=$('#champsList');if(!c)return;
+  if(!_formChamps.length){c.innerHTML='<p style="color:var(--ink-dim);font-size:.85rem">Aucun champ. Ajoute-en ci-dessous.</p>';return;}
+  c.innerHTML=_formChamps.map((f,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;background:var(--surface-2);border-radius:6px;padding:8px 10px">
+      <span style="flex:1"><strong>${esc(f.label)}</strong> <small style="color:var(--ink-dim)">(${typeLabel(f.type)})</small></span>
+      <label style="display:flex;gap:4px;align-items:center;font-size:.8rem;color:var(--ink-dim)"><input type="checkbox" ${f.required?'checked':''} onchange="toggleChampReq(${i},this.checked)" style="width:auto"> obligatoire</label>
+      <button type="button" class="btn btn-danger btn-sm" onclick="removeChamp(${i})">✕</button>
+    </div>`).join('');
+}
+function typeLabel(t){return{text:'texte',tel:'téléphone',email:'email',number:'nombre',textarea:'texte long',choix:'choix',checkbox:'case à cocher'}[t]||t;}
+function toggleChampReq(i,v){_formChamps[i].required=v;}
+function removeChamp(i){_formChamps.splice(i,1);renderChamps();}
+function addChampPredef(){
+  const key=$('#champPredef').value;if(!key)return;
+  if(_formChamps.find(f=>f.key===key))return toast('Champ déjà ajouté',true);
+  const def=CHAMPS_PREDEF.find(c=>c.key===key);
+  _formChamps.push({key:def.key,label:def.label,type:def.type,required:key==='nom'});
+  $('#champPredef').value='';renderChamps();
+}
+function addChampPerso(){
+  const c=$('#champsList');
+  if($('#cpInline'))return; // déjà ouvert
+  const div=document.createElement('div');div.id='cpInline';
+  div.style.cssText='border:1px dashed var(--accent);border-radius:8px;padding:12px;margin-top:8px';
+  div.innerHTML=`
+    <input id="cp-label" placeholder="Libellé (ex: Tu ramènes un plat ?)" style="width:100%;margin-bottom:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:9px">
+    <select id="cp-type" onchange="cpToggleOptions()" style="width:100%;margin-bottom:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:9px">
+      <option value="text">Texte court</option>
+      <option value="textarea">Texte long</option>
+      <option value="number">Nombre</option>
+      <option value="choix">Choix (menu déroulant)</option>
+      <option value="checkbox">Case à cocher (oui/non)</option>
+    </select>
+    <textarea id="cp-options" placeholder="Une option par ligne&#10;Menu adulte&#10;Menu enfant" style="width:100%;margin-bottom:8px;display:none;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:9px"></textarea>
+    <label style="display:flex;gap:6px;align-items:center;font-size:.82rem;color:var(--ink-dim);margin-bottom:8px"><input type="checkbox" id="cp-req" style="width:auto"> Réponse obligatoire</label>
+    <div style="display:flex;gap:8px">
+      <button type="button" class="btn btn-primary btn-sm" onclick="confirmChampPerso()">Valider</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('cpInline').remove()">Annuler</button>
+    </div>`;
+  c.parentElement.insertBefore(div,c.nextSibling);
+}
+function cpToggleOptions(){const w=$('#cp-options');if(w)w.style.display=$('#cp-type').value==='choix'?'block':'none';}
+function confirmChampPerso(){
+  const label=$('#cp-label').value.trim();if(!label)return toast('Mets un libellé',true);
+  const type=$('#cp-type').value;
+  const champ={key:'perso_'+Date.now(),label,type,required:$('#cp-req').checked};
+  if(type==='choix'){champ.options=$('#cp-options').value.split('\n').map(s=>s.trim()).filter(Boolean);if(!champ.options.length)return toast('Ajoute au moins une option',true);}
+  _formChamps.push(champ);
+  $('#cpInline')?.remove();
+  renderChamps();
 }
 async function saveEvent(id){
-  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,lien_doodle:$('#ev-doodle').value.trim()||null,inscriptions:$('#ev-ins').checked};
+  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,lien_doodle:$('#ev-doodle').value.trim()||null,inscriptions:$('#ev-ins').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
   if(!p.titre||!p.date_debut)return toast('Titre et date requis',true);
   const {error}=id?await sb.from('evenements').update(p).eq('id',id):await sb.from('evenements').insert(p);
   if(error)return toast(error.message,true);
@@ -1683,7 +1780,12 @@ async function loadAdmin(){
 
   if(currentAdminTab==='inscriptions'){
     const {data}=await sb.from('inscriptions').select('*, evenements(titre)').order('created_at',{ascending:false});
-    c.innerHTML=(data?.length)?data.map(i=>`<div class="admin-list-row"><div class="info"><strong>${esc(i.nom)}</strong><small>${esc(i.evenements?.titre||'—')} · ${i.nb_personnes} pers. ${i.email?'· '+esc(i.email):''} ${i.telephone?'· '+esc(i.telephone):''}</small>${i.commentaire?`<small style="font-style:italic">"${esc(i.commentaire)}"</small>`:''}</div><button class="btn btn-danger btn-sm" onclick="delRow('inscriptions','${i.id}','admin')">✕</button></div>`).join(''):emptyState('Aucune inscription.');
+    c.innerHTML=(data?.length)?data.map(i=>{
+      const rep=i.reponses&&typeof i.reponses==='object'&&Object.keys(i.reponses).length?i.reponses:null;
+      const detail=rep?Object.entries(rep).filter(([k,v])=>v!==''&&v!=null).map(([k,v])=>`<small>${esc(k)} : <strong>${esc(String(v))}</strong></small>`).join(''):`<small>${i.nb_personnes||1} pers. ${i.email?'· '+esc(i.email):''} ${i.telephone?'· '+esc(i.telephone):''}</small>${i.commentaire?`<small style="font-style:italic">"${esc(i.commentaire)}"</small>`:''}`;
+      const titre=i.nom||(rep?Object.values(rep)[0]:'')||'—';
+      return `<div class="admin-list-row"><div class="info"><strong>${esc(titre)}</strong><small style="color:var(--accent)">${esc(i.evenements?.titre||'—')}</small>${detail}</div><button class="btn btn-danger btn-sm" onclick="delRow('inscriptions','${i.id}','admin')">✕</button></div>`;
+    }).join(''):emptyState('Aucune inscription.');
   }
 
   if(currentAdminTab==='soumissions'){
