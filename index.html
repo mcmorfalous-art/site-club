@@ -238,6 +238,25 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* Créneaux ouverture */
 .creneaux-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:32px}
+/* Calendrier ouverture */
+.ouv-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+.ouv-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:20px}
+.ouv-dow{text-align:center;font-family:var(--font-disp);font-weight:700;color:var(--ink-dim);font-size:.85rem;padding:4px 0}
+.ouv-empty{aspect-ratio:1}
+.ouv-day{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:var(--font-disp);position:relative;border:1px solid transparent}
+.ouv-closed{background:var(--surface);color:var(--ink-dim);opacity:.4;font-size:1rem}
+.ouv-free{background:linear-gradient(135deg,#123f55,#0e2f42);border-color:var(--accent);cursor:pointer;transition:transform .12s,box-shadow .12s}
+.ouv-free:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(92,198,232,.25)}
+.ouv-taken{background:var(--surface-2);border-color:var(--green);cursor:pointer}
+.ouv-taken:hover{border-color:var(--accent)}
+.ouv-num{font-size:1.1rem;font-weight:700;color:var(--ink)}
+.ouv-dot{font-size:.75rem;line-height:1}
+.ouv-legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;color:var(--ink-dim);font-size:.85rem;margin-bottom:28px}
+.ouv-legend .lg{display:inline-flex;width:20px;height:20px;border-radius:4px;align-items:center;justify-content:center;font-size:.7rem;vertical-align:middle;margin-right:4px}
+.ouv-legend .lg-free{background:linear-gradient(135deg,#123f55,#0e2f42);border:1px solid var(--accent)}
+.ouv-legend .lg-taken{background:var(--surface-2);border:1px solid var(--green)}
+.ouv-legend .lg-closed{background:var(--surface);opacity:.4}
+@media(max-width:600px){.ouv-num{font-size:.9rem}.ouv-day{border-radius:6px}.ouv-grid{gap:4px}}
 .creneau{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;padding:18px;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer;text-align:left}
 .creneau:hover{transform:translateY(-2px);border-color:var(--amber);box-shadow:0 8px 24px rgba(242,169,59,.12)}
 .creneau .txt p{color:var(--amber)!important}
@@ -245,6 +264,13 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 .creneau .txt h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;color:var(--ink);line-height:1.1}
 .creneau .txt p{color:var(--accent);font-size:.86rem;margin:2px 0 0;display:flex;align-items:center;gap:5px}
 .info-pratique{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;max-width:70ch}
+.creneau{width:100%}
+.creneau-libre{border-left-color:var(--amber)}
+.creneau-pris{border-left-color:var(--green);cursor:default;background:var(--surface-2)}
+.creneau-pris:hover{transform:none;box-shadow:none;border-color:var(--line);border-left-color:var(--green)}
+.creneau-pris .txt h3{color:var(--ink-dim)}
+.creneau .respo-nom{display:block;color:var(--green);font-size:.82rem;font-weight:600;margin-top:4px}
+.creneau-pris .btn-danger{margin-left:auto}
 .info-pratique h3{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;font-size:1.3rem;margin-bottom:10px}
 .info-pratique p{color:var(--ink-dim)}
 /* ===== Splash screen ===== */
@@ -455,11 +481,11 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 <section class="page" id="page-ouverture">
   <div class="eyebrow">Accès au terrain</div>
   <h1 class="title">Ouvertures du terrain</h1>
-  <p class="lead" style="margin-bottom:28px">Inscris-toi à un créneau via Doodle en cliquant dessus. Les horaires sont fixes ; les inscriptions se gèrent sur Doodle.</p>
-  <div class="creneaux-grid" id="creneauxGrid"></div>
+  <p class="lead" style="margin-bottom:28px">Inscris-toi pour être <strong>responsable de l'ouverture</strong> du terrain. Choisis une date libre ci-dessous : un seul responsable par créneau. Les horaires correspondent à ceux affichés.</p>
+  <div id="ouvCalendar"></div>
   <div class="info-pratique">
     <h3>🔑 Infos pratiques</h3>
-    <p>Le terrain est ouvert aux licenciés du club aux créneaux ci-dessus. Merci de t'inscrire à l'avance sur le Doodle correspondant pour que la permanence soit assurée. En cas de météo incertaine, vérifie auprès du bureau.</p>
+    <p>Le responsable d'ouverture s'engage à ouvrir le terrain et assurer la permanence sur le créneau choisi. Merci de t'inscrire à l'avance pour que chaque créneau soit couvert. En cas d'empêchement, préviens le bureau.</p>
   </div>
 </section>
 
@@ -711,23 +737,145 @@ const loaders={
 };
 
 /* ---- Ouverture (créneaux Doodle fixes) ---- */
-const CRENEAUX=[
-  {jour:'Lundi', horaire:'14h – 18h', lien:'https://doodle.com/bp/lesmorfalousnull/ouverture-terrain-mc-morfalous-lundi'},
-  {jour:'Mercredi', horaire:'14h – 18h', lien:'https://doodle.com/bp/lesmorfalousnull/ouverture-terrain-mc-morfalous-mercredi'},
-  {jour:'Samedi', horaire:'10h – 12h & 14h – 18h', lien:'https://doodle.com/bp/lesmorfalousnull/ouverture-terrain-mc-morfalous'},
-  {jour:'Samedi (Juillet – Août)', horaire:'14h – 18h', lien:'https://doodle.com/bp/lesmorfalousnull/ouverture-terrain-mc-morfalous-samedi-du-0107au3108'},
-  {jour:'Dimanche', horaire:'10h – 12h', lien:'https://doodle.com/bp/lesmorfalousnull/ouverture-terrain-mc-morfalous-dimanche'},
-  {jour:'Jours fériés', horaire:'10h – 12h', lien:'https://doodle.com/bp/lesmorfalousnull/ouverture-terrain-mc-morfalous-jours-feries'},
-];
+// dow = jour de la semaine (0=dimanche, 1=lundi... 6=samedi)
 const TRAVAUX_LIEN='https://doodle.com/sign-up-sheet/participate/7c07ecdf-4d6c-4784-a725-5994ca463e37/select';
-function loadOuverture(){
-  $('#creneauxGrid').innerHTML=CRENEAUX.map(c=>`
-    <a class="creneau" href="${esc(c.lien)}" target="_blank" rel="noopener">
-      <span class="ico">🔑</span>
-      <div class="txt"><h3>${esc(c.jour)}</h3><p>${esc(c.horaire)} · S'inscrire ↗</p></div>
-    </a>`).join('');
-}
 function openTravaux(){ window.open(TRAVAUX_LIEN,'_blank','noopener'); }
+
+/* ===== Calendrier de réservation des responsables d'ouverture =====
+   Règles 2026 :
+   - Lundi 14h-18h · Mercredi 14h-18h
+   - Samedi : 10h-12h & 14h-18h (sauf juillet-août : 14h-18h seulement)
+   - Dimanche 10h-12h
+   - Jours fériés : 10h-12h (le férié prime sur le créneau normal), sauf 14 juillet = fermé
+*/
+const JOURS_FERIES_2026={
+  '2026-01-01':'Jour de l\'an','2026-04-06':'Lundi de Pâques','2026-05-01':'Fête du travail',
+  '2026-05-08':'Victoire 1945','2026-05-14':'Ascension','2026-05-25':'Lundi de Pentecôte',
+  '2026-07-14':'FERMÉ','2026-08-15':'Assomption','2026-11-01':'Toussaint',
+  '2026-11-11':'Armistice','2026-12-25':'Noël',
+};
+function isoD(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),j=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${j}`;}
+// renvoie l'horaire ouvrable d'une date, ou null si fermé
+function creneauDuJour(d){
+  const iso=isoD(d);
+  const ferie=JOURS_FERIES_2026[iso];
+  if(ferie==='FERMÉ')return null;
+  if(ferie)return '10h – 12h';           // férié ouvrable : prime, 10h-12h
+  const dow=d.getDay();                    // 0=dim … 6=sam
+  const mois=d.getMonth();                 // 6=juillet, 7=août
+  if(dow===1)return '14h – 18h';           // lundi
+  if(dow===3)return '14h – 18h';           // mercredi
+  if(dow===6)return (mois===6||mois===7)?'14h – 18h':'10h – 12h & 14h – 18h'; // samedi
+  if(dow===0)return '10h – 12h';           // dimanche
+  return null;
+}
+let _ouvMonth=null; // Date au 1er du mois affiché
+let _ouvResa={};    // iso -> réservation
+
+async function loadOuverture(){
+  const cont=$('#ouvCalendar');cont.innerHTML='<div class="loading">Chargement…</div>';
+  const today=new Date();today.setHours(0,0,0,0);
+  if(!_ouvMonth)_ouvMonth=new Date(today.getFullYear(),today.getMonth(),1);
+  // charger les réservations à venir
+  const {data}=await sb.from('ouvertures_reservations').select('*').gte('date_jour',isoD(today));
+  _ouvResa={};(data||[]).forEach(r=>{_ouvResa[r.date_jour]=r;});
+  renderOuvCalendar();
+}
+function ouvChangeMonth(delta){
+  _ouvMonth=new Date(_ouvMonth.getFullYear(),_ouvMonth.getMonth()+delta,1);
+  renderOuvCalendar();
+}
+function renderOuvCalendar(){
+  const cont=$('#ouvCalendar');
+  const today=new Date();today.setHours(0,0,0,0);
+  const year=_ouvMonth.getFullYear(),month=_ouvMonth.getMonth();
+  const first=new Date(year,month,1);
+  const startDow=(first.getDay()+6)%7; // lundi=0
+  const nbDays=new Date(year,month+1,0).getDate();
+  const moisNom=_ouvMonth.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  // navigation : on ne recule pas avant le mois courant
+  const curMonthStart=new Date(today.getFullYear(),today.getMonth(),1);
+  const canPrev=_ouvMonth>curMonthStart;
+  let cells='';
+  ['L','M','M','J','V','S','D'].forEach(j=>cells+=`<div class="ouv-dow">${j}</div>`);
+  for(let i=0;i<startDow;i++)cells+='<div class="ouv-empty"></div>';
+  for(let day=1;day<=nbDays;day++){
+    const d=new Date(year,month,day);d.setHours(0,0,0,0);
+    const iso=isoD(d);
+    const horaire=creneauDuJour(d);
+    const past=d<today;
+    const ferie=JOURS_FERIES_2026[iso];
+    if(!horaire){
+      cells+=`<div class="ouv-day ouv-closed" title="${ferie==='FERMÉ'?'Fermé':'Terrain fermé'}">${day}</div>`;
+      continue;
+    }
+    const resa=_ouvResa[iso];
+    if(past){cells+=`<div class="ouv-day ouv-closed">${day}</div>`;continue;}
+    if(resa){
+      cells+=`<button class="ouv-day ouv-taken" onclick="ouvShowDay('${iso}')" title="Réservé par ${esc(resa.nom)}">
+        <span class="ouv-num">${day}</span><span class="ouv-dot">✅</span></button>`;
+    }else{
+      cells+=`<button class="ouv-day ouv-free" onclick="ouvShowDay('${iso}')" title="${horaire} — libre">
+        <span class="ouv-num">${day}</span><span class="ouv-dot">🔑</span></button>`;
+    }
+  }
+  cont.innerHTML=`
+    <div class="ouv-cal-head">
+      <button class="btn btn-ghost btn-sm" ${canPrev?'':'disabled style=opacity:.3'} onclick="ouvChangeMonth(-1)">←</button>
+      <h3 style="text-transform:capitalize;font-family:var(--font-disp);font-size:1.3rem;margin:0">${moisNom}</h3>
+      <button class="btn btn-ghost btn-sm" onclick="ouvChangeMonth(1)">→</button>
+    </div>
+    <div class="ouv-grid">${cells}</div>
+    <div class="ouv-legend">
+      <span><span class="lg lg-free">🔑</span> Libre</span>
+      <span><span class="lg lg-taken">✅</span> Responsable trouvé</span>
+      <span><span class="lg lg-closed"></span> Fermé</span>
+    </div>`;
+}
+function ouvShowDay(iso){
+  const d=new Date(iso+'T00:00:00');
+  const horaire=creneauDuJour(d);
+  const resa=_ouvResa[iso];
+  const dateStr=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(resa){
+    openModal('Créneau du '+dateStr,`
+      <p style="color:var(--ink-dim);margin-bottom:8px">Horaire : <strong style="color:var(--ink)">${esc(horaire)}</strong></p>
+      <div style="background:var(--surface-2);border-radius:8px;padding:14px;margin-bottom:16px">
+        <p style="margin:0"><span style="color:var(--accent)">Responsable :</span> <strong>${esc(resa.nom)}</strong></p>
+        ${resa.telephone?`<p style="margin:6px 0 0;color:var(--ink-dim);font-size:.9rem">📞 ${esc(resa.telephone)}</p>`:''}
+        ${isAdmin&&resa.licence?`<p style="margin:6px 0 0;color:var(--ink-dim);font-size:.9rem">Licence : ${esc(resa.licence)}</p>`:''}
+      </div>
+      ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="delRespo('${resa.id}')">Annuler cette réservation</button>`:'<p style="color:var(--ink-dim);font-size:.85rem">Ce créneau a déjà un responsable.</p>'}`);
+    return;
+  }
+  openModal("Responsable d'ouverture",`
+    <p style="margin-bottom:4px;color:var(--ink-dim)">Tu t'inscris comme responsable pour :</p>
+    <p style="margin:0 0 4px;font-weight:700;text-transform:capitalize">${esc(dateStr)}</p>
+    <p style="margin:0 0 18px;color:var(--accent)">${esc(horaire)}</p>
+    ${fld('Nom / Prénom','respo-nom','','text','Ton nom')}
+    ${fld('Téléphone','respo-tel','','tel','06…')}
+    ${fld('Numéro de licence','respo-lic','','text','')}
+    <button class="btn btn-primary" onclick="submitRespo('${iso}','${esc(horaire)}')">Je m'inscris comme responsable</button>`);
+}
+async function submitRespo(iso,horaire){
+  const nom=$('#respo-nom').value.trim();
+  if(!nom)return toast('Ton nom est requis',true);
+  const {error}=await sb.from('ouvertures_reservations').insert({
+    date_jour:iso,creneau:horaire,nom,
+    telephone:$('#respo-tel').value.trim()||null,licence:$('#respo-lic').value.trim()||null});
+  if(error){
+    if(error.code==='23505')return toast('Ce jour vient d\'être pris par quelqu\'un d\'autre',true);
+    return toast(error.message,true);
+  }
+  closeModal();toast('Merci ! Tu es responsable de ce créneau 🔑');loadOuverture();
+}
+async function delRespo(id){
+  if(!confirm('Annuler cette réservation ?'))return;
+  const {data,error}=await sb.from('ouvertures_reservations').delete().eq('id',id).select();
+  if(error)return toast(error.message,true);
+  if(!data||!data.length)return toast('Annulation refusée (droits admin manquants)',true);
+  closeModal();toast('Réservation annulée');loadOuverture();
+}
 
 /* ---- Accueil ---- */
 async function loadHome(){
