@@ -1103,14 +1103,13 @@ async function saveClubCode(){
 async function submitRespo(iso,horaire){
   const nom=$('#respo-nom').value.trim();
   if(!nom)return toast('Ton nom est requis',true);
-  // vérification du code du club (réservé aux licenciés)
+  // vérification du code du club (TOUJOURS obligatoire, réservé aux licenciés)
   const codeSaisi=($('#respo-code').value||'').trim();
+  if(!codeSaisi)return toast('Le code du club est obligatoire 🔒',true);
   const {data:cfgCode}=await sb.from('config').select('valeur').eq('cle','club_code').maybeSingle();
   const codeAttendu=(cfgCode?.valeur||'').trim();
-  if(codeAttendu){ // un code est configuré → on le vérifie
-    if(!codeSaisi)return toast('Le code du club est requis',true);
-    if(codeSaisi.toLowerCase()!==codeAttendu.toLowerCase())return toast('Code du club incorrect ❌',true);
-  }
+  if(!codeAttendu)return toast("Aucun code n'est encore configuré. Contacte le bureau.",true);
+  if(codeSaisi.toLowerCase()!==codeAttendu.toLowerCase())return toast('Code du club incorrect ❌',true);
   const {error}=await sb.from('ouvertures_reservations').insert({
     date_jour:iso,creneau:horaire,nom,
     telephone:$('#respo-tel').value.trim()||null,licence:$('#respo-lic').value.trim()||null});
