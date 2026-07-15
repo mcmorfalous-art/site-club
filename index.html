@@ -1660,15 +1660,13 @@ async function openInscription(eventId){
     ${fieldsHtml}
     <div style="border-top:1px solid var(--line);margin:14px 0;padding-top:14px">
       <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="insf-absent" style="width:auto" onchange="toggleAbsent(this.checked)"> Je ne pourrai pas être présent·e</label>
-      <div id="procurationWrap" style="display:none">
-        ${fld('Je donne procuration à (optionnel)','insf-procuration','','text','Nom de la personne')}
-      </div>
+      ${e.procurations?`<div id="procurationWrap" style="display:none">${fld('Je donne procuration à (optionnel)','insf-procuration','','text','Nom de la personne')}</div>`:''}
     </div>
     <button class="btn btn-primary" id="insBtn" onclick='submitInscription("${eventId}")'>Confirmer ma présence</button>`);
   _inscChamps=champs;
 }
 function toggleAbsent(absent){
-  $('#procurationWrap').style.display=absent?'block':'none';
+  const w=$('#procurationWrap');if(w)w.style.display=absent?'block':'none';
   const btn=$('#insBtn');if(btn)btn.textContent=absent?'Confirmer mon absence':'Confirmer ma présence';
 }
 let _inscChamps=[];
@@ -1752,6 +1750,7 @@ async function openEventForm(id){
     ${fld('Début','ev-debut',dt,'datetime-local')}
     ${fld('Fin (optionnel)','ev-fin',df,'datetime-local')}
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="ev-ins" ${e.inscriptions?'checked':''} style="width:auto" onchange="toggleFormBuilder(this.checked)"> Inscription directe sur le site</label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="ev-proc" ${e.procurations?'checked':''} style="width:auto"> Activer les procurations (pour l'AG)</label>
     <div id="formBuilder" style="${e.inscriptions?'':'display:none'};border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px">
       <h4 style="font-family:var(--font-disp);text-transform:uppercase;font-size:1rem;margin-bottom:10px">📋 Champs du formulaire</h4>
       <div id="champsList"></div>
@@ -1821,7 +1820,7 @@ function confirmChampPerso(){
   renderChamps();
 }
 async function saveEvent(id){
-  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,inscriptions:$('#ev-ins').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
+  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,inscriptions:$('#ev-ins').checked,procurations:$('#ev-proc').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
   if(!p.titre||!p.date_debut)return toast('Titre et date requis',true);
   const {error}=id?await sb.from('evenements').update(p).eq('id',id):await sb.from('evenements').insert(p);
   if(error)return toast(error.message,true);
