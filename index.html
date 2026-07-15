@@ -2628,14 +2628,35 @@ async function loadPushAdmin(){
 }
 
 let _deferredPrompt=null;
+function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;}
+function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;}
 function showInstallBtns(show){
   ['#installBtn','#installBtnNav'].forEach(sel=>{const b=$(sel);if(b)b.style.display=show?'inline-flex':'none';});
+}
+function refreshInstallBtns(){
+  // Déjà installée → on cache tout
+  if(isStandalone()){showInstallBtns(false);return;}
+  // Android/PC avec prompt natif dispo, OU iPhone (instructions) → on montre le bouton
+  if(_deferredPrompt||isIOS()){showInstallBtns(true);}
 }
 window.addEventListener('beforeinstallprompt',(e)=>{
   e.preventDefault();_deferredPrompt=e;
   showInstallBtns(true);
 });
+window.addEventListener('appinstalled',()=>{_deferredPrompt=null;showInstallBtns(false);});
 function installApp(){
+  // iPhone : pas de prompt natif possible → on explique la manip
+  if(isIOS()&&!_deferredPrompt){
+    openModal('📲 Installer sur iPhone',`
+      <p style="margin-bottom:16px">L'installation sur iPhone se fait en 3 étapes, depuis <strong>Safari</strong> :</p>
+      <ol style="line-height:2;padding-left:20px;margin-bottom:16px">
+        <li>Appuie sur le bouton <strong>Partager</strong> <span style="display:inline-block;border:1px solid var(--line);border-radius:5px;padding:0 6px">⬆️</span> (en bas de l'écran)</li>
+        <li>Fais défiler et choisis <strong>« Sur l'écran d'accueil »</strong></li>
+        <li>Appuie sur <strong>Ajouter</strong> en haut à droite</li>
+      </ol>
+      <p style="color:var(--ink-dim);font-size:.88rem">💡 Ça ne marche que dans Safari — pas dans Chrome ou Firefox sur iPhone.</p>`);
+    return;
+  }
   if(!_deferredPrompt)return toast("Utilise le menu de ton navigateur → « Ajouter à l'écran d'accueil »");
   _deferredPrompt.prompt();
   _deferredPrompt.userChoice.finally(()=>{_deferredPrompt=null;showInstallBtns(false);});
@@ -2674,6 +2695,7 @@ function hideSplash(){
   loadHome();
   hideSplash();
   refreshNotifBtn();
+  refreshInstallBtns();
 })();
 /* filet de sécurité : masquer le splash même si une requête traîne */
 setTimeout(()=>$('#splash')?.classList.add('hide'), 4000);
