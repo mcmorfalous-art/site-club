@@ -1658,8 +1658,18 @@ async function openInscription(eventId){
   const fieldsHtml=champs.map((f,i)=>renderInscField(f,i)).join('');
   openModal('Inscription — '+e.titre,`
     ${fieldsHtml}
-    <button class="btn btn-primary" onclick='submitInscription("${eventId}")'>Confirmer mon inscription</button>`);
+    <div style="border-top:1px solid var(--line);margin:14px 0;padding-top:14px">
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="insf-absent" style="width:auto" onchange="toggleAbsent(this.checked)"> Je ne pourrai pas être présent·e</label>
+      <div id="procurationWrap" style="display:none">
+        ${fld('Je donne procuration à (optionnel)','insf-procuration','','text','Nom de la personne')}
+      </div>
+    </div>
+    <button class="btn btn-primary" id="insBtn" onclick='submitInscription("${eventId}")'>Confirmer ma présence</button>`);
   _inscChamps=champs;
+}
+function toggleAbsent(absent){
+  $('#procurationWrap').style.display=absent?'block':'none';
+  const btn=$('#insBtn');if(btn)btn.textContent=absent?'Confirmer mon absence':'Confirmer ma présence';
 }
 let _inscChamps=[];
 function renderInscField(f,i){
@@ -1674,23 +1684,27 @@ function renderInscField(f,i){
 }
 async function submitInscription(eventId){
   const reponses={};
+  const absent=$('#insf-absent')?.checked;
   for(let i=0;i<_inscChamps.length;i++){
     const f=_inscChamps[i];const el=$('#insf-'+i);if(!el)continue;
     let val=f.type==='checkbox'?(el.checked?'Oui':'Non'):el.value.trim();
-    if(f.required&&f.type!=='checkbox'&&!val)return toast(`« ${f.label} » est obligatoire`,true);
+    // si absent, on n'exige pas les champs obligatoires sauf le nom
+    if(!absent&&f.required&&f.type!=='checkbox'&&!val)return toast(`« ${f.label} » est obligatoire`,true);
+    if(absent&&f.key==='nom'&&!val)return toast('Ton nom est requis',true);
     reponses[f.label]=val;
   }
-  // compat : on remplit aussi les colonnes connues si présentes
+  reponses['Présence']=absent?'Absent·e':'Présent·e';
+  if(absent){const proc=$('#insf-procuration')?.value.trim();if(proc)reponses['Procuration à']=proc;}
   const nomChamp=_inscChamps.find(f=>f.key==='nom');
   const row={evenement_id:eventId,reponses,
     nom:nomChamp?reponses[nomChamp.label]:null,
-    nb_personnes:parseInt(reponses[_inscChamps.find(f=>f.key==='nb_personnes')?.label])||1,
+    nb_personnes:absent?0:(parseInt(reponses[_inscChamps.find(f=>f.key==='nb_personnes')?.label])||1),
     email:reponses[_inscChamps.find(f=>f.key==='email')?.label]||null,
     telephone:reponses[_inscChamps.find(f=>f.key==='telephone')?.label]||null,
     commentaire:reponses[_inscChamps.find(f=>f.key==='commentaire')?.label]||null};
   const {error}=await sb.from('inscriptions').insert(row);
   if(error)return toast(error.message,true);
-  closeModal();toast('Inscription confirmée ! 🏁');
+  closeModal();toast(absent?'Merci, on note ton absence':'Inscription confirmée ! 🏁');
 }
 
 /* ============ SUPPRESSION GÉNÉRIQUE ============ */
