@@ -80,6 +80,12 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .cd-sep{display:none}
 .cd-date{display:none}
 .cd-admin-empty{margin-bottom:16px}
+.home-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.home-topbar .countdown{margin-bottom:0}
+.home-topbar .cd-admin-empty{margin-bottom:0}
+.home-histoire-btn{margin-left:auto;background:var(--surface-2);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-disp);font-weight:800;text-transform:uppercase;letter-spacing:.03em;font-size:.85rem;padding:9px 16px;border-radius:10px;cursor:pointer;transition:all .12s;white-space:nowrap}
+.home-histoire-btn:hover{background:var(--accent);color:#0a1a24;transform:translateY(-1px)}
+@media(max-width:600px){.home-topbar{flex-direction:column;align-items:stretch}.home-histoire-btn{margin-left:0;text-align:center}}
 .home-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
 .home-stats .hstat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 12px;text-align:center}
 .home-stats .hstat .n{font-family:var(--font-disp);font-weight:900;font-size:2.2rem;line-height:1;color:var(--accent)}
@@ -211,6 +217,9 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 #adminContent{display:block;width:100%;clear:both}
 #adminTabs{width:100%}
 .admin-card h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.res-admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.res-admin-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:7px 13px;border-radius:var(--radius);color:var(--ink-dim);font-size:.88rem;border:1px solid transparent}
+.res-admin-tabs button.active{background:var(--accent);color:#0a1a24}
 .admin-list-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:8px}
 .admin-list-row .info{min-width:0;flex:1}
 .admin-list-row .info strong{font-family:var(--font-disp);text-transform:uppercase;font-size:1.05rem}
@@ -340,7 +349,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 
 <div class="admin-bar" id="adminBar">
   <span>● Mode admin</span>
-  <button class="btn btn-sm" onclick="go('admin')" style="background:#0a1a24;color:var(--accent)">Panneau de gestion</button>
+  <button class="btn btn-sm" onclick="go('admin')" style="background:#0a1a24;color:var(--accent)">Espace bureau</button>
   <button class="btn btn-sm" onclick="logout()" style="background:#0a1a24;color:var(--ink);margin-left:auto">Déconnexion</button>
 </div>
 
@@ -382,18 +391,21 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     </div>
   </div>
 
-  <div class="countdown" id="countdown" style="display:none">
-    <div class="cd-label"><span id="cdLabel">Prochaine édition</span><span class="cd-date-inline" id="cdDate"></span></div>
-    <div class="cd-timer" id="cdTimer">
-      <div class="cd-unit"><span class="cd-num" id="cdDays">0</span><span class="cd-txt">j</span></div>
-      <div class="cd-unit"><span class="cd-num" id="cdHours">0</span><span class="cd-txt">h</span></div>
-      <div class="cd-unit"><span class="cd-num" id="cdMins">0</span><span class="cd-txt">m</span></div>
-      <div class="cd-unit"><span class="cd-num" id="cdSecs">0</span><span class="cd-txt">s</span></div>
+  <div class="home-topbar">
+    <div class="countdown" id="countdown" style="display:none">
+      <div class="cd-label"><span id="cdLabel">Prochaine édition</span><span class="cd-date-inline" id="cdDate"></span></div>
+      <div class="cd-timer" id="cdTimer">
+        <div class="cd-unit"><span class="cd-num" id="cdDays">0</span><span class="cd-txt">j</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cdHours">0</span><span class="cd-txt">h</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cdMins">0</span><span class="cd-txt">m</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cdSecs">0</span><span class="cd-txt">s</span></div>
+      </div>
+      <button class="cd-edit admin-only" onclick="openCountdownForm()" title="Régler le compte à rebours">⚙️</button>
     </div>
-    <button class="cd-edit admin-only" onclick="openCountdownForm()" title="Régler le compte à rebours">⚙️</button>
-  </div>
-  <div class="cd-admin-empty admin-only" id="cdEmpty" style="display:none">
-    <button class="btn btn-ghost btn-sm" onclick="openCountdownForm()">⏱ Ajouter un compte à rebours (prochaine édition)</button>
+    <div class="cd-admin-empty admin-only" id="cdEmpty" style="display:none">
+      <button class="btn btn-ghost btn-sm" onclick="openCountdownForm()">⏱ Ajouter un compte à rebours</button>
+    </div>
+    <button class="home-histoire-btn" onclick="go('histoire')">🐺 Notre histoire</button>
   </div>
 
   <div class="home-stats" id="homeStats">
@@ -471,6 +483,11 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <p class="lead" style="margin-bottom:28px">Travaux, roulages, courses et assemblées. Inscription directement sur le site selon l'événement.</p>
   <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openEventForm()">+ Nouvel événement</button>
   <div id="calendarList"><div class="loading">Chargement…</div></div>
+  <div class="admin-only" id="calInscriptionsWrap" style="margin-top:40px;display:none">
+    <h2 class="section-title" style="margin-bottom:8px">📋 Inscriptions reçues</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Toutes les inscriptions aux événements (réservé au bureau).</p>
+    <div id="calInscriptionsList"><div class="loading">Chargement…</div></div>
+  </div>
 </section>
 
 <!-- ACTUALITES -->
@@ -490,6 +507,14 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <p class="lead" style="margin-bottom:28px">Les performances de nos pilotes, par catégorie.</p>
   <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openCourseForm()">+ Nouvelle course</button>
   <div id="resultatsList"><div class="loading">Chargement…</div></div>
+  <div class="admin-only" id="resAdminWrap" style="margin-top:40px;display:none">
+    <div class="res-admin-tabs" id="resAdminTabs">
+      <button class="active" onclick="resAdminTab('categories',this)">Catégories</button>
+      <button onclick="resAdminTab('pilotes',this)">Pilotes</button>
+      <button onclick="resAdminTab('respart',this)">Partenaires images</button>
+    </div>
+    <div id="resAdminContent"><div class="loading">Chargement…</div></div>
+  </div>
 </section>
 
 <!-- PHOTOS / VIDEOS -->
@@ -512,6 +537,11 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <p class="lead" style="margin-bottom:28px">Une équipe de bénévoles passionnés qui fait vivre le club.</p>
   <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openBureauForm()">+ Ajouter un membre</button>
   <div class="grid grid-4" id="bureauList"><div class="loading">Chargement…</div></div>
+  <div class="admin-only" id="adminsWrap" style="margin-top:40px;display:none">
+    <h2 class="section-title" style="margin-bottom:8px">🔑 Accès administrateurs</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Gère qui a accès au mode admin du site (réservé au bureau).</p>
+    <div id="adminsList"><div class="loading">Chargement…</div></div>
+  </div>
 </section>
 
 <!-- PARTENAIRES -->
@@ -585,23 +615,19 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <div class="field"><label>Ton idée</label><textarea id="idee-contenu" placeholder="Je propose que…"></textarea></div>
     <button class="btn btn-primary" onclick="envoyerSoumission('idee')">Envoyer mon idée</button>
   </div>
+  <div class="admin-only" id="ideesRecuesWrap" style="margin-top:40px;display:none">
+    <h2 class="section-title" style="margin-bottom:8px">💡 Idées reçues</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Les idées et suggestions envoyées par les membres (réservé au bureau).</p>
+    <div id="ideesRecuesList"><div class="loading">Chargement…</div></div>
+  </div>
   <p style="margin-top:40px;color:var(--ink-dim);font-size:.85rem">Membre du bureau ? L'accès se trouve en bas de page.</p>
 </section>
 
 <!-- ADMIN -->
 <section class="page admin-only" id="page-admin" style="display:none">
   <div class="eyebrow">Gestion</div>
-  <h1 class="title">Panneau admin</h1>
-  <div class="admin-tabs" id="adminTabs">
-    <button class="active" onclick="adminTab('contenu',this)">Contenu</button>
-    <button onclick="adminTab('inscriptions',this)">Inscriptions</button>
-    <button onclick="adminTab('soumissions',this)">Idées reçues</button>
-    <button onclick="adminTab('categories',this)">Catégories</button>
-    <button onclick="adminTab('pilotes',this)">Pilotes</button>
-    <button onclick="adminTab('respartenaires',this)">Part. résultats</button>
-    <button onclick="adminTab('liens',this)">Liens</button>
-    <button onclick="adminTab('admins',this)">Bureau</button>
-  </div>
+  <h1 class="title">Espace bureau</h1>
+  <p class="lead" style="margin-bottom:24px">Crée un nouvel élément, ou va sur chaque page pour gérer son contenu (les boutons ✎ ✕ et les sections de gestion s'affichent en mode admin).</p>
   <div id="adminContent"><div class="loading">Chargement…</div></div>
 </section>
 
@@ -820,9 +846,17 @@ const loaders={
   accueil:loadHome, calendrier:loadCalendar, actualites:loadActus,
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
-  ouverture:loadOuverture, travaux:loadTravaux, participer:()=>{}, admin:loadAdmin,
+  ouverture:loadOuverture, travaux:loadTravaux, participer:loadParticiper, admin:loadAdmin,
   mentions:loadMentions,
 };
+async function loadParticiper(){
+  const wrap=$('#ideesRecuesWrap');if(!wrap)return;
+  if(!isAdmin){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const cont=$('#ideesRecuesList');
+  const {data}=await sb.from('soumissions').select('*').order('created_at',{ascending:false});
+  cont.innerHTML=(data?.length)?data.map(s=>`<div class="admin-list-row"><div class="info"><strong>${esc(s.type)}${s.nom?' · '+esc(s.nom):''}</strong><small>${fmtDate(s.created_at)}</small><small style="white-space:pre-wrap;color:var(--ink)">${esc(s.contenu)}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('soumissions','${s.id}','participer')">✕</button></div>`).join(''):emptyState('Aucune idée reçue.');
+}
 
 /* ===== TRAVAUX (dates créées par l'admin, plusieurs bénévoles par date) ===== */
 async function loadTravaux(){
@@ -1214,7 +1248,20 @@ async function openCoverForm(){
     <input id="logo-file" type="file" accept="image/*" style="display:none" onchange="handleLogoUpload()">
     <button type="button" class="btn btn-primary" onclick="document.getElementById('logo-file').click()">Changer le logo</button>
     <div id="logo-preview" style="margin-top:14px"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="removeLogo()">Rétablir le logo par défaut</button>`);
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="removeLogo()">Rétablir le logo par défaut</button>
+    <hr style="border:none;border-top:1px solid var(--line);margin:22px 0">
+    <h3 class="section-title" style="margin-bottom:10px">🔗 Liens externes</h3>
+    <p style="color:var(--ink-dim);margin-bottom:14px">Ces liens alimentent les tuiles « Prono » et « Boutique » de l'accueil. Laisse Boutique vide pour masquer la tuile.</p>
+    <div id="liens-box"><div class="loading">Chargement…</div></div>`);
+  loadLiensInline();
+}
+async function loadLiensInline(){
+  await loadConfig();
+  const box=$('#liens-box');if(!box)return;
+  box.innerHTML=`
+    ${fld('Lien Prono','cfg-prono',cfg.lien_prono||'')}
+    ${fld('Lien Boutique','cfg-boutique',cfg.lien_boutique||'','text','https://... (vide = masquée)')}
+    <button class="btn btn-primary btn-sm" onclick="saveConfig()">Enregistrer les liens</button>`;
 }
 async function handleCoverUpload(){
   const f=$('#cover-file').files[0];if(!f)return;
@@ -1339,6 +1386,22 @@ async function loadCalendar(){
   const {data:trav}=await sb.from('travaux_dates').select('*').gte('date_jour',today);
   const all=[...(data||[]),...((trav||[]).map(travauxAsEvent))].sort((a,b)=>new Date(a.date_debut)-new Date(b.date_debut));
   $('#calendarList').innerHTML=(all.length)?all.map(calItem).join(''):emptyState('Aucun événement programmé.');
+  // section inscriptions (admin uniquement)
+  const wrap=$('#calInscriptionsWrap');
+  if(wrap){
+    if(isAdmin){wrap.style.display='block';loadCalInscriptions();}
+    else wrap.style.display='none';
+  }
+}
+async function loadCalInscriptions(){
+  const cont=$('#calInscriptionsList');if(!cont)return;
+  const {data}=await sb.from('inscriptions').select('*, evenements(titre)').order('created_at',{ascending:false});
+  cont.innerHTML=(data?.length)?data.map(i=>{
+    const rep=i.reponses&&typeof i.reponses==='object'&&Object.keys(i.reponses).length?i.reponses:null;
+    const detail=rep?Object.entries(rep).filter(([k,v])=>v!==''&&v!=null).map(([k,v])=>`<small>${esc(k)} : <strong>${esc(String(v))}</strong></small>`).join(''):`<small>${i.nb_personnes||1} pers. ${i.email?'· '+esc(i.email):''} ${i.telephone?'· '+esc(i.telephone):''}</small>${i.commentaire?`<small style="font-style:italic">"${esc(i.commentaire)}"</small>`:''}`;
+    const titre=i.nom||(rep?Object.values(rep)[0]:'')||'—';
+    return `<div class="admin-list-row"><div class="info"><strong>${esc(titre)}</strong><small style="color:var(--accent)">${esc(i.evenements?.titre||'—')}</small>${detail}</div><button class="btn btn-danger btn-sm" onclick="delRow('inscriptions','${i.id}','calendrier')">✕</button></div>`;
+  }).join(''):emptyState('Aucune inscription pour le moment.');
 }
 
 /* ---- Actus ---- */
@@ -1371,10 +1434,10 @@ async function loadActus(){
 function renderActuFilters(){
   const cont=$('#actuFilters');if(!cont)return;
   const catLabels={tous:'Tout',actualite:'Actus',bureau:'Bureau',travaux:'Travaux',ouverture:'Ouverture'};
-  // n'afficher que les catégories qui ont au moins un article
-  const present=new Set(_actusCache.map(a=>a.categorie||'actualite'));
-  const cats=['tous',...['actualite','bureau','travaux','ouverture'].filter(c=>present.has(c))];
-  if(cats.length<=2){cont.innerHTML='';return;} // pas la peine de filtrer s'il n'y a qu'une catégorie
+  // si aucun article du tout, pas de filtres
+  if(!_actusCache.length){cont.innerHTML='';return;}
+  // toujours afficher "Tout" + les 4 catégories
+  const cats=['tous','actualite','bureau','travaux','ouverture'];
   cont.innerHTML=cats.map(c=>`<button class="${_actuFilter===c?'active':''}" onclick="filterActus('${c}')">${catLabels[c]}</button>`).join('');
 }
 function filterActus(cat){_actuFilter=cat;renderActuFilters();renderActus();}
@@ -1406,6 +1469,23 @@ async function loadBureau(){
         <button class="btn btn-danger btn-sm" onclick="delRow('bureau','${m.id}','bureau')">✕</button>
       </div>
     </div>`).join(''):emptyState('Organigramme à venir.');
+  // section accès admins (admin uniquement)
+  const wrap=$('#adminsWrap');
+  if(wrap){
+    if(isAdmin){wrap.style.display='block';loadAdminsList();}
+    else wrap.style.display='none';
+  }
+}
+async function loadAdminsList(){
+  const cont=$('#adminsList');if(!cont)return;
+  const {data}=await sb.from('admins').select('*').order('created_at');
+  cont.innerHTML=`<div class="admin-card"><h3>Ajouter un accès admin</h3>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">La personne crée d'abord son compte (Accès bureau). Récupère son <strong>user_id</strong> dans Supabase &gt; Authentication.</p>
+    ${fld('User ID (UUID)','adm-uid','')}
+    ${fld('Nom','adm-nom','')}
+    ${fld('Rôle','adm-role','','text','Président…')}
+    <button class="btn btn-primary btn-sm" onclick="addAdmin()">Ajouter</button></div>
+    ${(data?.length)?data.map(a=>`<div class="admin-list-row"><div class="info"><strong>${esc(a.nom||'—')}</strong><small>${esc(a.role_bureau||'')} · ${esc(a.user_id)}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('admins','${a.id}','bureau')">✕</button></div>`).join(''):''}`;
 }
 
 /* ---- Partenaires ---- */
@@ -1447,7 +1527,6 @@ async function loadMentions(){
       <p>Les informations recueillies via les formulaires (inscriptions aux événements, réservations) sont utilisées uniquement pour la gestion de la vie du club et ne sont ni vendues ni cédées à des tiers. Conformément au RGPD, vous pouvez demander l'accès, la rectification ou la suppression de vos données en écrivant à <a href="mailto:mcmorfalous@gmail.com">mcmorfalous@gmail.com</a>.</p>
       <h3 style="color:var(--ink);margin:20px 0 8px">Propriété intellectuelle</h3>
       <p>L'ensemble des contenus (textes, logos, photos) présents sur ce site sont la propriété de l'association MC Les Morfalous, sauf mention contraire. Toute reproduction sans autorisation est interdite.</p>
-      <p style="margin-top:24px;font-size:.85rem;font-style:italic">Ce texte est un modèle de base — l'association peut le compléter via le bouton « Modifier cette page ».</p>
     </div>`;
   }
 }
@@ -1489,8 +1568,50 @@ async function loadResultats(){
     html+=`</div></div></div>`;
   }
   $('#resultatsList').innerHTML=html;
+  // sections admin (catégories, pilotes, partenaires images)
+  const wrap=$('#resAdminWrap');
+  if(wrap){
+    if(isAdmin){wrap.style.display='block';loadResAdmin();}
+    else wrap.style.display='none';
+  }
 }
-function ordinal(n){return n==1?'er':'e';}
+let _resAdminTab='categories';
+function resAdminTab(tab,btn){
+  _resAdminTab=tab;
+  $$('#resAdminTabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');loadResAdmin();
+}
+async function loadResAdmin(){
+  const c=$('#resAdminContent');if(!c)return;
+  c.innerHTML='<div class="loading">Chargement…</div>';
+  if(_resAdminTab==='categories'){
+    await loadCats();
+    c.innerHTML=`<div class="admin-card"><h3>Ajouter une catégorie</h3>
+      ${fld('Nom','catg-nom','','text','ex : MX Open')}
+      ${fld('Ordre','catg-ordre',(cats.length+1)*10,'number')}
+      <button class="btn btn-primary btn-sm" onclick="addCat()">Ajouter</button></div>
+      ${cats.map(ct=>`<div class="admin-list-row"><div class="info"><strong>${esc(ct.nom)}</strong><small>ordre : ${ct.ordre}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('categories','${ct.id}','resultats')">✕</button></div>`).join('')}`;
+  }
+  if(_resAdminTab==='pilotes'){
+    await loadPilotes();
+    c.innerHTML=`<div class="admin-card"><h3>Base de pilotes</h3>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Les pilotes saisis dans les résultats sont mémorisés ici automatiquement. Tu peux aussi en ajouter/supprimer à la main.</p>
+      ${fld('NOM Prénom','pil-nom','','text','GELOT Quentin')}
+      ${fld('Numéro','pil-num','','text','119')}
+      <button class="btn btn-primary btn-sm" onclick="addPilote()">Ajouter</button></div>
+      ${(pilotesDB.length)?pilotesDB.map(p=>`<div class="admin-list-row"><div class="info"><strong>${esc(p.nom)}</strong><small>${p.num?'#'+esc(p.num):'sans numéro'}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('pilotes','${p.id}','resultats')">✕</button></div>`).join(''):'<p style="color:var(--ink-dim);font-size:.9rem">Aucun pilote enregistré.</p>'}`;
+  }
+  if(_resAdminTab==='respart'){
+    const {data}=await sb.from('resultats_partenaires').select('*').order('ordre');
+    c.innerHTML=`<div class="admin-card"><h3>Partenaires pour la bande d'images</h3>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Ces logos apparaissent en bas des images de résultats (option activable à la génération).</p>
+      ${fileField('Logo','rp-file','rp-logo','image/*','respart')}
+      ${fld('Nom','rp-nom','')}
+      ${fld('Ordre','rp-ordre',(data?.length||0)*10+10,'number')}
+      <button class="btn btn-primary btn-sm" onclick="addResPart()">Ajouter</button></div>
+      ${(data?.length)?data.map(p=>`<div class="admin-list-row"><div class="info" style="display:flex;align-items:center;gap:10px"><img src="${esc(p.logo_url)}" style="height:34px;background:#fff;border-radius:4px;padding:2px"><strong>${esc(p.nom)}</strong></div><button class="btn btn-danger btn-sm" onclick="delRow('resultats_partenaires','${p.id}','resultats')">✕</button></div>`).join(''):'<p style="color:var(--ink-dim);font-size:.9rem">Aucun partenaire résultats.</p>'}`;
+  }
+}
 
 /* -------- Générateur d'images (couverture + 1 par catégorie) -------- */
 const IMG_FORMATS={portrait:{w:1080,h:1350},post:{w:1080,h:1080},story:{w:1080,h:1920}};
@@ -2320,114 +2441,61 @@ async function savePage(slug){
   closeModal();toast('Enregistré');
   if(slug==='notre-histoire')loadHistoire();else if(slug==='mentions-legales')loadMentions();else loadLicence();
 }
-/* ============ PANNEAU ADMIN ============ */
-let currentAdminTab='contenu';
-function adminTab(tab,btn){
-  currentAdminTab=tab;
-  $$('#adminTabs button').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');loadAdmin();
-}
+/* ============ ESPACE BUREAU (hub) ============ */
 async function loadAdmin(){
   if(!isAdmin){$('#adminContent').innerHTML=emptyState('Accès réservé aux admins.');return;}
-  const c=$('#adminContent');c.innerHTML='<div class="loading">Chargement…</div>';
-
-  if(currentAdminTab==='contenu'){
-    c.innerHTML=`
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-      <button class="btn btn-primary btn-sm" onclick="openActuForm()">+ Article</button>
-      <button class="btn btn-primary btn-sm" onclick="openCourseForm()">+ Course résultats</button>
-      <button class="btn btn-primary btn-sm" onclick="openEventForm()">+ Événement</button>
-      <button class="btn btn-primary btn-sm" onclick="openAlbumForm()">+ Album photo/vidéo</button>
-      <button class="btn btn-ghost btn-sm" onclick="openBureauForm()">+ Membre bureau</button>
-      <button class="btn btn-ghost btn-sm" onclick="openPartenaireForm()">+ Partenaire</button>
-      <button class="btn btn-ghost btn-sm" onclick="openPageForm('notre-histoire','Notre histoire')">Page Histoire</button>
-      <button class="btn btn-ghost btn-sm" onclick="openPageForm('prise-licence','Prendre sa licence')">Page Licence</button>
+  const c=$('#adminContent');
+  c.innerHTML=`
+    <div class="admin-card" style="margin-bottom:20px">
+      <h3>➕ Créer un nouvel élément</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="openActuForm()">+ Article</button>
+        <button class="btn btn-primary btn-sm" onclick="openEventForm()">+ Événement</button>
+        <button class="btn btn-primary btn-sm" onclick="openCourseForm()">+ Course résultats</button>
+        <button class="btn btn-primary btn-sm" onclick="openAlbumForm()">+ Album photo/vidéo</button>
+        <button class="btn btn-ghost btn-sm" onclick="openBureauForm()">+ Membre bureau</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPartenaireForm()">+ Partenaire</button>
+      </div>
     </div>
-    <p style="color:var(--ink-dim);font-size:.88rem">Pour modifier ou supprimer un élément existant, va sur la page publique concernée : les boutons ✎ et ✕ y sont affichés en mode admin.</p>`;
-  }
-
-  if(currentAdminTab==='inscriptions'){
-    const {data}=await sb.from('inscriptions').select('*, evenements(titre)').order('created_at',{ascending:false});
-    c.innerHTML=(data?.length)?data.map(i=>{
-      const rep=i.reponses&&typeof i.reponses==='object'&&Object.keys(i.reponses).length?i.reponses:null;
-      const detail=rep?Object.entries(rep).filter(([k,v])=>v!==''&&v!=null).map(([k,v])=>`<small>${esc(k)} : <strong>${esc(String(v))}</strong></small>`).join(''):`<small>${i.nb_personnes||1} pers. ${i.email?'· '+esc(i.email):''} ${i.telephone?'· '+esc(i.telephone):''}</small>${i.commentaire?`<small style="font-style:italic">"${esc(i.commentaire)}"</small>`:''}`;
-      const titre=i.nom||(rep?Object.values(rep)[0]:'')||'—';
-      return `<div class="admin-list-row"><div class="info"><strong>${esc(titre)}</strong><small style="color:var(--accent)">${esc(i.evenements?.titre||'—')}</small>${detail}</div><button class="btn btn-danger btn-sm" onclick="delRow('inscriptions','${i.id}','admin')">✕</button></div>`;
-    }).join(''):emptyState('Aucune inscription.');
-  }
-
-  if(currentAdminTab==='soumissions'){
-    const {data}=await sb.from('soumissions').select('*').order('created_at',{ascending:false});
-    c.innerHTML=(data?.length)?data.map(s=>`<div class="admin-list-row"><div class="info"><strong>${esc(s.type)}${s.nom?' · '+esc(s.nom):''}</strong><small>${fmtDate(s.created_at)}</small><small style="white-space:pre-wrap;color:var(--ink)">${esc(s.contenu)}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('soumissions','${s.id}','admin')">✕</button></div>`).join(''):emptyState('Aucune idée reçue.');
-  }
-
-  if(currentAdminTab==='categories'){
-    await loadCats();
-    c.innerHTML=`<div class="admin-card"><h3>Ajouter une catégorie</h3>
-      ${fld('Nom','catg-nom','','text','ex : MX Open')}
-      ${fld('Ordre','catg-ordre',(cats.length+1)*10,'number')}
-      <button class="btn btn-primary btn-sm" onclick="addCat()">Ajouter</button></div>
-      ${cats.map(ct=>`<div class="admin-list-row"><div class="info"><strong>${esc(ct.nom)}</strong><small>ordre : ${ct.ordre}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('categories','${ct.id}','admin')">✕</button></div>`).join('')}`;
-  }
-
-  if(currentAdminTab==='pilotes'){
-    await loadPilotes();
-    c.innerHTML=`<div class="admin-card"><h3>Base de pilotes</h3>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Les pilotes saisis dans les résultats sont mémorisés ici automatiquement. Tu peux aussi en ajouter/supprimer à la main.</p>
-      ${fld('NOM Prénom','pil-nom','','text','GELOT Quentin')}
-      ${fld('Numéro','pil-num','','text','119')}
-      <button class="btn btn-primary btn-sm" onclick="addPilote()">Ajouter</button></div>
-      ${(pilotesDB.length)?pilotesDB.map(p=>`<div class="admin-list-row"><div class="info"><strong>${esc(p.nom)}</strong><small>${p.num?'#'+esc(p.num):'sans numéro'}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('pilotes','${p.id}','admin')">✕</button></div>`).join(''):'<p style="color:var(--ink-dim);font-size:.9rem">Aucun pilote enregistré.</p>'}`;
-  }
-
-  if(currentAdminTab==='respartenaires'){
-    const {data}=await sb.from('resultats_partenaires').select('*').order('ordre');
-    c.innerHTML=`<div class="admin-card"><h3>Partenaires pour la bande d'images</h3>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Ces logos apparaissent en bas des images de résultats (option activable à la génération).</p>
-      ${fileField('Logo','rp-file','rp-logo','image/*','respart')}
-      ${fld('Nom','rp-nom','')}
-      ${fld('Ordre','rp-ordre',(data?.length||0)*10+10,'number')}
-      <button class="btn btn-primary btn-sm" onclick="addResPart()">Ajouter</button></div>
-      ${(data?.length)?data.map(p=>`<div class="admin-list-row"><div class="info" style="display:flex;align-items:center;gap:10px"><img src="${esc(p.logo_url)}" style="height:34px;background:#fff;border-radius:4px;padding:2px"><strong>${esc(p.nom)}</strong></div><button class="btn btn-danger btn-sm" onclick="delRow('resultats_partenaires','${p.id}','admin')">✕</button></div>`).join(''):'<p style="color:var(--ink-dim);font-size:.9rem">Aucun partenaire résultats.</p>'}`;
-  }
-
-  if(currentAdminTab==='liens'){
-    await loadConfig();
-    c.innerHTML=`<div class="admin-card"><h3>Liens externes</h3>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">Ces liens alimentent les tuiles « Prono » et « Boutique » de l'accueil.</p>
-      ${fld('Lien Prono','cfg-prono',cfg.lien_prono||'')}
-      ${fld('Lien Boutique','cfg-boutique',cfg.lien_boutique||'','text','https://... (vide = tuile masquée)')}
-      <button class="btn btn-primary btn-sm" onclick="saveConfig()">Enregistrer</button></div>`;
-  }
-
-  if(currentAdminTab==='admins'){
-    const {data}=await sb.from('admins').select('*').order('created_at');
-    c.innerHTML=`<div class="admin-card"><h3>Ajouter un membre du bureau</h3>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:14px">La personne crée d'abord son compte (Accès bureau). Récupère son <strong>user_id</strong> dans Supabase &gt; Authentication.</p>
-      ${fld('User ID (UUID)','adm-uid','')}
-      ${fld('Nom','adm-nom','')}
-      ${fld('Rôle','adm-role','','text','Président…')}
-      <button class="btn btn-primary btn-sm" onclick="addAdmin()">Ajouter</button></div>
-      ${(data?.length)?data.map(a=>`<div class="admin-list-row"><div class="info"><strong>${esc(a.nom||'—')}</strong><small>${esc(a.role_bureau||'')} · ${esc(a.user_id)}</small></div><button class="btn btn-danger btn-sm" onclick="delRow('admins','${a.id}','admin')">✕</button></div>`).join(''):''}`;
-  }
+    <div class="admin-card" style="margin-bottom:20px">
+      <h3>📄 Modifier les pages de contenu</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" onclick="openCoverForm()">🎨 Accueil (couverture, logo, liens)</button>
+        <button class="btn btn-ghost btn-sm" onclick="openCountdownForm()">⏱ Compte à rebours</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPageForm('notre-histoire','Notre histoire')">Page Histoire</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPageForm('prise-licence','Prendre sa licence')">Page Licence</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPageForm('mentions-legales','Mentions légales')">Mentions légales</button>
+      </div>
+    </div>
+    <div class="admin-card">
+      <h3>🗂 Gérer sur chaque page</h3>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin:8px 0 12px">Va sur la page concernée : les boutons ✎ ✕ et les sections de gestion (inscriptions, idées, pilotes, catégories, accès admin…) s'affichent en mode admin.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <button class="btn btn-ghost btn-sm" onclick="go('calendrier')">📅 Calendrier + inscriptions</button>
+        <button class="btn btn-ghost btn-sm" onclick="go('resultats')">🏁 Résultats + pilotes/catégories</button>
+        <button class="btn btn-ghost btn-sm" onclick="go('participer')">💡 Idées reçues</button>
+        <button class="btn btn-ghost btn-sm" onclick="go('ouverture')">🔑 Ouverture + code club</button>
+        <button class="btn btn-ghost btn-sm" onclick="go('bureau')">👥 Bureau + accès admin</button>
+      </div>
+    </div>`;
 }
 async function addCat(){
   const nom=$('#catg-nom').value.trim();if(!nom)return toast('Nom requis',true);
   const {error}=await sb.from('categories').insert({nom,ordre:parseInt($('#catg-ordre').value)||0});
   if(error)return toast(error.message,true);
-  toast('Catégorie ajoutée');loadAdmin();
+  toast('Catégorie ajoutée');loadResAdmin();
 }
 async function addPilote(){
   const nom=$('#pil-nom').value.trim();if(!nom)return toast('Nom requis',true);
   const {error}=await sb.from('pilotes').insert({nom,num:$('#pil-num').value.trim()||null});
   if(error)return toast(error.message,true);
-  toast('Pilote ajouté');loadPilotes().then(loadAdmin);
+  toast('Pilote ajouté');loadPilotes().then(loadResAdmin);
 }
 async function addResPart(){
   const logo=$('#rp-logo').value.trim();if(!logo)return toast('Ajoute un logo',true);
   const {error}=await sb.from('resultats_partenaires').insert({nom:$('#rp-nom').value.trim()||'Partenaire',logo_url:logo,ordre:parseInt($('#rp-ordre').value)||0});
   if(error)return toast(error.message,true);
-  toast('Partenaire ajouté');loadAdmin();
+  toast('Partenaire ajouté');loadResAdmin();
 }
 async function saveConfig(){
   const rows=[{cle:'lien_prono',valeur:$('#cfg-prono').value.trim()},{cle:'lien_boutique',valeur:$('#cfg-boutique').value.trim()}];
@@ -2439,7 +2507,7 @@ async function addAdmin(){
   const user_id=$('#adm-uid').value.trim();if(!user_id)return toast('User ID requis',true);
   const {error}=await sb.from('admins').insert({user_id,nom:$('#adm-nom').value.trim()||null,role_bureau:$('#adm-role').value.trim()||null});
   if(error)return toast(error.message,true);
-  toast('Admin ajouté');loadAdmin();
+  toast('Admin ajouté');loadAdminsList();
 }
 
 /* ============ PWA (service worker + install) ============ */
