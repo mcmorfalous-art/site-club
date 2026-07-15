@@ -220,6 +220,8 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 .res-admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
 .res-admin-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:7px 13px;border-radius:var(--radius);color:var(--ink-dim);font-size:.88rem;border:1px solid transparent}
 .res-admin-tabs button.active{background:var(--accent);color:#0a1a24}
+.notif-btn.notif-on{background:var(--green)!important;border-color:var(--green)!important;color:#0a1a24!important}
+.notif-btn{display:block}
 .admin-list-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:8px}
 .admin-list-row .info{min-width:0;flex:1}
 .admin-list-row .info strong{font-family:var(--font-disp);text-transform:uppercase;font-size:1.05rem}
@@ -648,6 +650,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
         <a href="https://www.instagram.com/mcmorfalous/" target="_blank" rel="noopener">Instagram</a>
       </div>
       <button id="installBtn" class="btn btn-ghost btn-sm" style="display:none;margin-top:14px" onclick="installApp()">📲 Installer l'app</button>
+      <button id="notifBtn" class="btn btn-ghost btn-sm notif-btn" style="display:none;margin-top:10px" onclick="toggleNotif()">🔔 Activer les notifications</button>
     </div>
     <div>
       <h4 style="font-size:1rem">Contact</h4>
@@ -2477,7 +2480,13 @@ async function loadAdmin(){
         <button class="btn btn-ghost btn-sm" onclick="go('ouverture')">🔑 Ouverture + code club</button>
         <button class="btn btn-ghost btn-sm" onclick="go('bureau')">👥 Bureau + accès admin</button>
       </div>
+    </div>
+    <div style="margin-top:20px">
+      <h2 class="section-title" style="margin-bottom:8px">📢 Notifications push</h2>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Envoie une notification à tous les membres abonnés, en un clic.</p>
+      <div id="pushAdminContent"><div class="loading">Chargement…</div></div>
     </div>`;
+  loadPushAdmin();
 }
 async function addCat(){
   const nom=$('#catg-nom').value.trim();if(!nom)return toast('Nom requis',true);
@@ -2516,6 +2525,109 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   });
 }
+
+/* ============ NOTIFICATIONS PUSH ============ */
+const VAPID_PUBLIC_KEY='BChCQGci0Y_T5I7s_Z6LS-ejpV-dQCGEuwLiTdzIoU0lOOZlPuYs7QsxPdKASx6MD260S6eCJb7VfMJkpEXgceo';
+const PUSH_SUPPORTED=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+function urlB64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);const arr=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr;
+}
+async function getPushState(){
+  if(!PUSH_SUPPORTED)return 'unsupported';
+  if(Notification.permission==='denied')return 'denied';
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    return sub?'subscribed':'default';
+  }catch(_){return 'default';}
+}
+async function subscribePush(){
+  if(!PUSH_SUPPORTED)return toast("Ton navigateur ne gère pas les notifications",true);
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){toast('Notifications refusées');refreshNotifBtn();return;}
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(VAPID_PUBLIC_KEY)});
+    }
+    const {error}=await sb.functions.invoke('save-subscription',{body:{subscription:sub.toJSON(),userAgent:navigator.userAgent}});
+    if(error){toast("Erreur d'abonnement",true);return;}
+    toast('Notifications activées ! 🔔');refreshNotifBtn();
+  }catch(e){toast("Impossible d'activer les notifications",true);}
+}
+async function unsubscribePush(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    if(sub){
+      await sb.functions.invoke('save-subscription',{body:{subscription:sub.toJSON(),action:'unsubscribe'}});
+      await sub.unsubscribe();
+    }
+    toast('Notifications désactivées');refreshNotifBtn();
+  }catch(e){toast('Erreur',true);}
+}
+async function refreshNotifBtn(){
+  const btn=$('#notifBtn');if(!btn)return;
+  const state=await getPushState();
+  if(state==='unsupported'||state==='denied'){btn.style.display='none';return;}
+  btn.style.display='inline-flex';
+  if(state==='subscribed'){btn.textContent='🔔 Notifications activées';btn.classList.add('notif-on');}
+  else{btn.textContent='🔔 Activer les notifications';btn.classList.remove('notif-on');}
+}
+function toggleNotif(){
+  getPushState().then(s=>{if(s==='subscribed')unsubscribePush();else subscribePush();});
+}
+
+/* --- Envoi admin --- */
+const ADMIN_PUSH_MESSAGES=[
+  {label:'📄 Nouveau compte-rendu',title:'Nouveau compte-rendu 📄',body:'Un nouveau compte-rendu est disponible sur le site du club.',url:'./'},
+  {label:'🔑 Terrain ouvert ce week-end',title:'Terrain ouvert ce week-end 🔑',body:'Le terrain est ouvert ce week-end, venez rouler !',url:'./'},
+  {label:'🔧 Rappel travaux',title:'Journée travaux à venir 🔧',body:"N'oublie pas la prochaine journée travaux du club. On compte sur toi !",url:'./'},
+  {label:'📅 Nouvel événement',title:'Nouvel événement 📅',body:'Un nouvel événement vient d\'être ajouté au calendrier du club.',url:'./'},
+];
+async function sendAdminPush(title,body,url){
+  if(!confirm(`Envoyer cette notification à tous les abonnés ?\n\n${title}\n${body}`))return;
+  toast('Envoi en cours…');
+  const {data,error}=await sb.functions.invoke('send-admin-push',{body:{title,body,url:url||'./'}});
+  if(error){toast("Erreur d'envoi : "+(error.message||''),true);return;}
+  if(data?.error){toast(data.error,true);return;}
+  toast(`✓ Notification envoyée à ${data?.sent??0} appareil(s)`);
+}
+function sendPresetPush(i){
+  const m=ADMIN_PUSH_MESSAGES[i];if(!m)return;
+  sendAdminPush(m.title,m.body,m.url);
+}
+async function sendCustomPush(){
+  const title=$('#push-title').value.trim();
+  const body=$('#push-body').value.trim();
+  if(!title)return toast('Mets au moins un titre',true);
+  await sendAdminPush(title,body,'./');
+  $('#push-title').value='';$('#push-body').value='';
+}
+async function loadPushAdmin(){
+  const cont=$('#pushAdminContent');if(!cont)return;
+  let count='—';
+  try{const {count:c}=await sb.from('push_subscriptions').select('*',{count:'exact',head:true});count=c??0;}catch(_){}
+  cont.innerHTML=`
+    <p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:16px">👥 <strong>${count}</strong> appareil(s) abonné(s) aux notifications.</p>
+    <div class="admin-card" style="margin-bottom:16px">
+      <h3>Messages rapides</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        ${ADMIN_PUSH_MESSAGES.map((m,i)=>`<button class="btn btn-ghost btn-sm" style="text-align:left" onclick="sendPresetPush(${i})">${m.label}</button>`).join('')}
+      </div>
+    </div>
+    <div class="admin-card">
+      <h3>Message personnalisé</h3>
+      ${fld('Titre','push-title','','text','Ex : Assemblée générale')}
+      ${ar('Message','push-body','','Le texte de ta notification…')}
+      <button class="btn btn-primary btn-sm" onclick="sendCustomPush()">📢 Envoyer à tous</button>
+    </div>`;
+}
+
 let _deferredPrompt=null;
 function showInstallBtns(show){
   ['#installBtn','#installBtnNav'].forEach(sel=>{const b=$(sel);if(b)b.style.display=show?'inline-flex':'none';});
@@ -2562,6 +2674,7 @@ function hideSplash(){
   loadPartnersStrip();
   loadHome();
   hideSplash();
+  refreshNotifBtn();
 })();
 /* filet de sécurité : masquer le splash même si une requête traîne */
 setTimeout(()=>$('#splash')?.classList.add('hide'), 4000);
