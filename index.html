@@ -40,6 +40,8 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,26,36,.92);backdrop-
 .nav-links button{font-family:var(--font-disp);font-weight:600;font-size:1.02rem;text-transform:uppercase;letter-spacing:.03em;padding:8px 13px;border-radius:var(--radius);color:var(--ink-dim);transition:color .15s,background .15s}
 .nav-links button:hover{color:var(--ink);background:var(--surface-2)}
 .nav-links button.active{color:var(--accent)}
+.nav-links button.nav-install{background:var(--accent)!important;color:#0a1a24!important;font-weight:800}
+.nav-links button.nav-install:hover{background:var(--amber)!important;color:#0a1a24!important}
 .nav-bureau{border:1px solid var(--line);color:var(--ink-dim)!important;font-size:.92rem!important}
 .nav-bureau:hover{border-color:var(--accent);color:var(--accent)!important;background:transparent!important}
 .nav-cta{background:var(--accent)!important;color:#0a1a24!important}
@@ -66,17 +68,18 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .cover-edit{position:absolute;top:14px;right:14px;z-index:3;background:rgba(10,26,36,.7);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.8rem;padding:7px 12px;border-radius:8px;cursor:pointer;backdrop-filter:blur(4px)}
 .cover-edit:hover{background:var(--accent);color:#0a1a24}
 @media(max-width:600px){.cover{min-height:200px}.cover-content{padding:16px;gap:12px}.cover-logo img{width:72px;height:72px}.cover-titles h1{font-size:1.5rem}.cover-titles p{font-size:.8rem}}
-.countdown{position:relative;border-radius:10px;overflow:hidden;margin-bottom:16px;padding:12px 14px;text-align:center;background:linear-gradient(135deg,#17415a,#102f42);border:1px solid var(--accent)}
-.cd-edit{position:absolute;top:7px;right:7px;background:rgba(10,26,36,.6);border:1px solid var(--line);color:var(--ink);font-size:.8rem;padding:3px 7px;border-radius:6px;cursor:pointer}
+.countdown{position:relative;display:inline-flex;align-items:center;gap:12px;border-radius:10px;margin-bottom:16px;padding:8px 14px;background:linear-gradient(135deg,#17415a,#102f42);border:1px solid var(--accent)}
+.cd-edit{background:rgba(10,26,36,.6);border:1px solid var(--line);color:var(--ink);font-size:.75rem;padding:2px 6px;border-radius:5px;cursor:pointer;order:3}
 .cd-edit:hover{border-color:var(--accent);color:var(--accent)}
-.cd-label{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);letter-spacing:.04em;font-size:.85rem;margin-bottom:8px}
-.cd-timer{display:flex;align-items:center;justify-content:center;gap:5px}
-.cd-unit{display:flex;flex-direction:column;align-items:center;min-width:46px;background:rgba(10,26,36,.5);border-radius:6px;padding:6px 4px}
-.cd-num{font-family:var(--font-disp);font-weight:900;font-size:1.35rem;line-height:1;color:var(--ink)}
-.cd-txt{font-size:.6rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
-.cd-sep{font-family:var(--font-disp);font-weight:900;font-size:1.1rem;color:var(--accent);opacity:.5}
-.cd-date{margin-top:8px;color:var(--ink-dim);font-size:.8rem}
-.cd-admin-empty{text-align:center;margin-bottom:20px}
+.cd-label{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);letter-spacing:.03em;font-size:.8rem;line-height:1.15}
+.cd-label .cd-date-inline{display:block;color:var(--ink-dim);font-size:.68rem;font-weight:600;letter-spacing:0}
+.cd-timer{display:flex;align-items:baseline;gap:6px}
+.cd-unit{display:flex;align-items:baseline;gap:2px}
+.cd-num{font-family:var(--font-disp);font-weight:900;font-size:1.4rem;line-height:1;color:var(--ink)}
+.cd-txt{font-size:.6rem;text-transform:uppercase;color:var(--ink-dim)}
+.cd-sep{display:none}
+.cd-date{display:none}
+.cd-admin-empty{margin-bottom:16px}
 .home-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
 .home-stats .hstat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 12px;text-align:center}
 .home-stats .hstat .n{font-family:var(--font-disp);font-weight:900;font-size:2.2rem;line-height:1;color:var(--accent)}
@@ -86,7 +89,7 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .actu-filters button:hover{border-color:var(--accent);color:var(--ink)}
 .actu-filters button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
 .actu-cat-tag{display:inline-block;font-size:.7rem;text-transform:uppercase;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:4px;background:var(--surface-2);color:var(--accent);margin-bottom:8px}
-@media(max-width:600px){.cd-unit{min-width:0;flex:1;padding:5px 2px}.cd-num{font-size:1.15rem}.cd-txt{font-size:.55rem}.cd-sep{font-size:.9rem}.home-stats .hstat .n{font-size:1.6rem}}
+@media(max-width:600px){.countdown{width:100%;justify-content:space-between;gap:8px}.cd-num{font-size:1.2rem}.home-stats .hstat .n{font-size:1.6rem}}
 .hero-inner{padding:clamp(30px,5vw,56px) clamp(24px,5vw,60px)}
 .hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;align-items:center}
 .hero-logo{display:flex;justify-content:center;align-items:center}
@@ -353,6 +356,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button onclick="openExternal('lien_prono')">🏆 Prono ↗</button>
       <button class="nav-open" data-page="ouverture" onclick="go('ouverture')">Ouverture</button>
       <button class="nav-travaux" data-page="travaux" onclick="go('travaux')">Travaux</button>
+      <button id="installBtnNav" class="nav-install" onclick="installApp()" style="display:none">📲 Installer</button>
       <button id="btnBureau" class="nav-bureau" onclick="bureauClick()">🔒 Bureau</button>
       <button class="admin-only nav-cta" data-page="admin" onclick="go('admin')" style="background:var(--hot)!important;color:#fff!important">Admin</button>
     </nav>
@@ -379,18 +383,14 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   </div>
 
   <div class="countdown" id="countdown" style="display:none">
-    <button class="cd-edit admin-only" onclick="openCountdownForm()" title="Régler le compte à rebours">⚙️</button>
-    <div class="cd-label" id="cdLabel">Prochaine édition</div>
+    <div class="cd-label"><span id="cdLabel">Prochaine édition</span><span class="cd-date-inline" id="cdDate"></span></div>
     <div class="cd-timer" id="cdTimer">
-      <div class="cd-unit"><span class="cd-num" id="cdDays">0</span><span class="cd-txt">jours</span></div>
-      <div class="cd-sep">:</div>
+      <div class="cd-unit"><span class="cd-num" id="cdDays">0</span><span class="cd-txt">j</span></div>
       <div class="cd-unit"><span class="cd-num" id="cdHours">0</span><span class="cd-txt">h</span></div>
-      <div class="cd-sep">:</div>
-      <div class="cd-unit"><span class="cd-num" id="cdMins">0</span><span class="cd-txt">min</span></div>
-      <div class="cd-sep">:</div>
-      <div class="cd-unit"><span class="cd-num" id="cdSecs">0</span><span class="cd-txt">sec</span></div>
+      <div class="cd-unit"><span class="cd-num" id="cdMins">0</span><span class="cd-txt">m</span></div>
+      <div class="cd-unit"><span class="cd-num" id="cdSecs">0</span><span class="cd-txt">s</span></div>
     </div>
-    <div class="cd-date" id="cdDate"></div>
+    <button class="cd-edit admin-only" onclick="openCountdownForm()" title="Régler le compte à rebours">⚙️</button>
   </div>
   <div class="cd-admin-empty admin-only" id="cdEmpty" style="display:none">
     <button class="btn btn-ghost btn-sm" onclick="openCountdownForm()">⏱ Ajouter un compte à rebours (prochaine édition)</button>
@@ -544,6 +544,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="eyebrow">Accès au terrain</div>
   <h1 class="title">Ouvertures du terrain</h1>
   <p class="lead" style="margin-bottom:28px">Inscris-toi pour être <strong>responsable de l'ouverture</strong> du terrain. Choisis une date libre ci-dessous : un seul responsable par créneau. Les horaires correspondent à ceux affichés.</p>
+  <button class="btn btn-ghost admin-only btn-sm" style="margin-bottom:20px" onclick="openClubCodeForm()">🔒 Code du club</button>
   <div id="ouvCalendar"></div>
   <div class="info-pratique">
     <h3>🔑 Infos pratiques</h3>
@@ -1015,6 +1016,7 @@ function ouvShowDay(iso){
     ${fld('Nom / Prénom','respo-nom','','text','Ton nom')}
     ${fld('Téléphone','respo-tel','','tel','06…')}
     ${fld('Numéro de licence','respo-lic','','text','')}
+    <div class="field"><label>🔒 Code du club <span style="color:var(--hot)">*</span></label><input id="respo-code" type="text" placeholder="Code réservé aux licenciés" autocomplete="off"><small style="color:var(--ink-dim);display:block;margin-top:4px">Code communiqué aux licenciés du club</small></div>
     <button class="btn btn-primary" onclick="submitRespo('${iso}','${esc(horaire)}')">Je m'inscris comme responsable</button>`);
 }
 /* Ajout du créneau d'ouverture au calendrier (Google ou .ics) */
@@ -1047,9 +1049,31 @@ function ouvCalIcs(s,e,titre,details){
   a.download='ouverture-terrain.ics';a.click();URL.revokeObjectURL(a.href);
   closeModal();toast('Fichier téléchargé 📅');
 }
+async function openClubCodeForm(){
+  const {data}=await sb.from('config').select('valeur').eq('cle','club_code').maybeSingle();
+  const cur=data?.valeur||'';
+  openModal('Code du club',`
+    <p style="color:var(--ink-dim);margin-bottom:14px">Définis un code que seuls les licenciés du club connaissent. Il sera demandé pour s'inscrire comme responsable d'ouverture. Laisse vide pour désactiver la vérification.</p>
+    ${fld('Code du club','cc-code',cur,'text','ex : MORFA2026')}
+    <button class="btn btn-primary" onclick="saveClubCode()">Enregistrer</button>`);
+}
+async function saveClubCode(){
+  const code=$('#cc-code').value.trim();
+  const {error}=await sb.from('config').upsert({cle:'club_code',valeur:code},{onConflict:'cle'});
+  if(error)return toast(error.message,true);
+  closeModal();toast(code?'Code enregistré 🔒':'Vérification du code désactivée');
+}
 async function submitRespo(iso,horaire){
   const nom=$('#respo-nom').value.trim();
   if(!nom)return toast('Ton nom est requis',true);
+  // vérification du code du club (réservé aux licenciés)
+  const codeSaisi=($('#respo-code').value||'').trim();
+  const {data:cfgCode}=await sb.from('config').select('valeur').eq('cle','club_code').maybeSingle();
+  const codeAttendu=(cfgCode?.valeur||'').trim();
+  if(codeAttendu){ // un code est configuré → on le vérifie
+    if(!codeSaisi)return toast('Le code du club est requis',true);
+    if(codeSaisi.toLowerCase()!==codeAttendu.toLowerCase())return toast('Code du club incorrect ❌',true);
+  }
   const {error}=await sb.from('ouvertures_reservations').insert({
     date_jour:iso,creneau:horaire,nom,
     telephone:$('#respo-tel').value.trim()||null,licence:$('#respo-lic').value.trim()||null});
@@ -1126,10 +1150,10 @@ async function loadCountdown(){
     return;
   }
   if(empty)empty.style.display='none';
-  if(cd)cd.style.display='block';
+  if(cd)cd.style.display='inline-flex';
   $('#cdLabel').textContent=dLabel?.valeur||'Prochaine édition';
-  const opts={weekday:'long',day:'numeric',month:'long',year:'numeric'};
-  $('#cdDate').textContent='📅 '+_cdTarget.toLocaleDateString('fr-FR',opts);
+  const opts={day:'numeric',month:'long',year:'numeric'};
+  $('#cdDate').textContent=_cdTarget.toLocaleDateString('fr-FR',opts);
   tickCountdown();
   if(_cdTimer)clearInterval(_cdTimer);
   _cdTimer=setInterval(tickCountdown,1000);
@@ -2425,14 +2449,17 @@ if('serviceWorker' in navigator){
   });
 }
 let _deferredPrompt=null;
+function showInstallBtns(show){
+  ['#installBtn','#installBtnNav'].forEach(sel=>{const b=$(sel);if(b)b.style.display=show?'inline-flex':'none';});
+}
 window.addEventListener('beforeinstallprompt',(e)=>{
   e.preventDefault();_deferredPrompt=e;
-  const b=$('#installBtn'); if(b)b.style.display='inline-flex';
+  showInstallBtns(true);
 });
 function installApp(){
   if(!_deferredPrompt)return toast("Utilise le menu de ton navigateur → « Ajouter à l'écran d'accueil »");
   _deferredPrompt.prompt();
-  _deferredPrompt.userChoice.finally(()=>{_deferredPrompt=null;const b=$('#installBtn');if(b)b.style.display='none';});
+  _deferredPrompt.userChoice.finally(()=>{_deferredPrompt=null;showInstallBtns(false);});
 }
 
 /* ============ INIT ============ */
