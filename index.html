@@ -753,13 +753,16 @@ function openAuth(){
     return;
   }
   openModal('Accès bureau',`
+    <div style="background:rgba(242,169,59,.12);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:18px">
+      <p style="margin:0;font-size:.9rem;line-height:1.5"><strong style="color:var(--amber)">⚠️ Réservé aux membres du bureau</strong><br>
+      <span style="color:var(--ink-dim)">Si tu es licencié, tu <strong>n'as pas besoin de compte</strong> : tu peux consulter le calendrier, t'inscrire aux événements et réserver une ouverture directement, sans te connecter.</span></p>
+    </div>
     <div class="field"><label>Email</label><input id="auth-email" type="email" placeholder="ton@email.fr"></div>
     <div class="field"><label>Mot de passe</label><input id="auth-pass" type="password" placeholder="••••••••"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="login()">Se connecter</button>
       <button class="btn btn-ghost" onclick="signup()">Créer un compte</button>
-    </div>
-    <p style="color:var(--ink-dim);font-size:.82rem;margin-top:14px">Réservé aux membres du bureau.</p>`);
+    </div>`);
 }
 async function login(){
   const email=$('#auth-email').value.trim(),password=$('#auth-pass').value;
