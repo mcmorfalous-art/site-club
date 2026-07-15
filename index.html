@@ -66,6 +66,22 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .cover-edit{position:absolute;top:14px;right:14px;z-index:3;background:rgba(10,26,36,.7);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.8rem;padding:7px 12px;border-radius:8px;cursor:pointer;backdrop-filter:blur(4px)}
 .cover-edit:hover{background:var(--accent);color:#0a1a24}
 @media(max-width:600px){.cover{min-height:200px}.cover-content{padding:16px;gap:12px}.cover-logo img{width:72px;height:72px}.cover-titles h1{font-size:1.5rem}.cover-titles p{font-size:.8rem}}
+.countdown{position:relative;border-radius:12px;overflow:hidden;margin-bottom:20px;padding:20px;text-align:center;background:linear-gradient(135deg,#17415a,#102f42);border:1px solid var(--accent)}
+.cd-edit{position:absolute;top:10px;right:10px;background:rgba(10,26,36,.6);border:1px solid var(--line);color:var(--ink);font-size:.9rem;padding:4px 8px;border-radius:6px;cursor:pointer}
+.cd-edit:hover{border-color:var(--accent);color:var(--accent)}
+.cd-label{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);letter-spacing:.05em;font-size:1.1rem;margin-bottom:14px}
+.cd-timer{display:flex;align-items:center;justify-content:center;gap:8px}
+.cd-unit{display:flex;flex-direction:column;align-items:center;min-width:64px;background:rgba(10,26,36,.5);border-radius:8px;padding:10px 6px}
+.cd-num{font-family:var(--font-disp);font-weight:900;font-size:2rem;line-height:1;color:var(--ink)}
+.cd-txt{font-size:.7rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.05em;margin-top:4px}
+.cd-sep{font-family:var(--font-disp);font-weight:900;font-size:1.6rem;color:var(--accent);opacity:.5}
+.cd-date{margin-top:14px;color:var(--ink-dim);font-size:.9rem}
+.cd-admin-empty{text-align:center;margin-bottom:20px}
+.home-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+.home-stats .hstat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 12px;text-align:center}
+.home-stats .hstat .n{font-family:var(--font-disp);font-weight:900;font-size:2.2rem;line-height:1;color:var(--accent)}
+.home-stats .hstat .l{font-size:.8rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.03em;margin-top:6px}
+@media(max-width:600px){.cd-unit{min-width:0;flex:1;padding:8px 2px}.cd-num{font-size:1.4rem}.cd-txt{font-size:.6rem}.cd-sep{font-size:1.1rem}.home-stats .hstat .n{font-size:1.6rem}}
 .hero-inner{padding:clamp(30px,5vw,56px) clamp(24px,5vw,60px)}
 .hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;align-items:center}
 .hero-logo{display:flex;justify-content:center;align-items:center}
@@ -355,6 +371,30 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
         <p>Moto Club · Vix · Vendée · Depuis 1984</p>
       </div>
     </div>
+  </div>
+
+  <div class="countdown" id="countdown" style="display:none">
+    <button class="cd-edit admin-only" onclick="openCountdownForm()" title="Régler le compte à rebours">⚙️</button>
+    <div class="cd-label" id="cdLabel">Prochaine édition</div>
+    <div class="cd-timer" id="cdTimer">
+      <div class="cd-unit"><span class="cd-num" id="cdDays">0</span><span class="cd-txt">jours</span></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-unit"><span class="cd-num" id="cdHours">0</span><span class="cd-txt">h</span></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-unit"><span class="cd-num" id="cdMins">0</span><span class="cd-txt">min</span></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-unit"><span class="cd-num" id="cdSecs">0</span><span class="cd-txt">sec</span></div>
+    </div>
+    <div class="cd-date" id="cdDate"></div>
+  </div>
+  <div class="cd-admin-empty admin-only" id="cdEmpty" style="display:none">
+    <button class="btn btn-ghost btn-sm" onclick="openCountdownForm()">⏱ Ajouter un compte à rebours (prochaine édition)</button>
+  </div>
+
+  <div class="home-stats" id="homeStats">
+    <div class="hstat"><div class="n" id="statEvents">—</div><div class="l">Événements à venir</div></div>
+    <div class="hstat"><div class="n" id="statActus">—</div><div class="l">Actualités</div></div>
+    <div class="hstat"><div class="n" id="statYears">—</div><div class="l">Ans de club</div></div>
   </div>
 
   <a class="next-rdv" id="nextRdv" href="#" onclick="go('calendrier');return false" style="display:none">
@@ -1025,6 +1065,7 @@ async function loadHome(){
   $('#statEvents').textContent=evs.length;
   const {count:acCount}=await sb.from('actualites').select('*',{count:'exact',head:true}).eq('publie',true);
   $('#statActus').textContent=acCount??0;
+  $('#statYears').textContent=(new Date().getFullYear()-1984);
   // bande prochain RDV
   const nr=$('#nextRdv');
   if(evs.length){
@@ -1037,8 +1078,74 @@ async function loadHome(){
   setupScrollHint();
   loadPartnersStrip();
   loadCover();
+  loadCountdown();
 }
-/* Photo de couverture (façon Facebook), stockée dans config */
+/* Compte à rebours vers la prochaine édition (date réglée en admin, config) */
+let _cdTimer=null, _cdTarget=null;
+async function loadCountdown(){
+  const cd=$('#countdown'), empty=$('#cdEmpty');
+  const {data:dDate}=await sb.from('config').select('valeur').eq('cle','countdown_date').maybeSingle();
+  const {data:dLabel}=await sb.from('config').select('valeur').eq('cle','countdown_label').maybeSingle();
+  const dateStr=dDate?.valeur;
+  const isAdm=document.body.classList.contains('is-admin');
+  if(!dateStr){
+    if(cd)cd.style.display='none';
+    if(empty)empty.style.display=isAdm?'block':'none';
+    if(_cdTimer){clearInterval(_cdTimer);_cdTimer=null;}
+    return;
+  }
+  _cdTarget=new Date(dateStr);
+  if(isNaN(_cdTarget)||_cdTarget.getTime()<=Date.now()){
+    if(cd)cd.style.display='none';
+    if(empty)empty.style.display=isAdm?'block':'none';
+    if(_cdTimer){clearInterval(_cdTimer);_cdTimer=null;}
+    return;
+  }
+  if(empty)empty.style.display='none';
+  if(cd)cd.style.display='block';
+  $('#cdLabel').textContent=dLabel?.valeur||'Prochaine édition';
+  const opts={weekday:'long',day:'numeric',month:'long',year:'numeric'};
+  $('#cdDate').textContent='📅 '+_cdTarget.toLocaleDateString('fr-FR',opts);
+  tickCountdown();
+  if(_cdTimer)clearInterval(_cdTimer);
+  _cdTimer=setInterval(tickCountdown,1000);
+}
+function tickCountdown(){
+  if(!_cdTarget)return;
+  let diff=Math.floor((_cdTarget.getTime()-Date.now())/1000);
+  if(diff<=0){clearInterval(_cdTimer);_cdTimer=null;loadCountdown();return;}
+  const d=Math.floor(diff/86400); diff-=d*86400;
+  const h=Math.floor(diff/3600); diff-=h*3600;
+  const m=Math.floor(diff/60); const s=diff-m*60;
+  const set=(id,v)=>{const el=$('#'+id);if(el)el.textContent=v;};
+  set('cdDays',d);set('cdHours',String(h).padStart(2,'0'));
+  set('cdMins',String(m).padStart(2,'0'));set('cdSecs',String(s).padStart(2,'0'));
+}
+async function openCountdownForm(){
+  const {data:dDate}=await sb.from('config').select('valeur').eq('cle','countdown_date').maybeSingle();
+  const {data:dLabel}=await sb.from('config').select('valeur').eq('cle','countdown_label').maybeSingle();
+  const cur=dDate?.valeur?dDate.valeur.slice(0,16):'';
+  openModal('Compte à rebours',`
+    <p style="color:var(--ink-dim);margin-bottom:14px">Règle la date de la prochaine édition du motocross. Le compte à rebours s'affiche sur l'accueil.</p>
+    <div class="field"><label>Titre</label><input id="cd-label" value="${esc(dLabel?.valeur||'Prochaine édition du motocross')}"></div>
+    <div class="field"><label>Date et heure</label><input id="cd-date" type="datetime-local" value="${cur}"></div>
+    <button class="btn btn-primary" onclick="saveCountdown()">Enregistrer</button>
+    ${cur?'<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="clearCountdown()">Retirer le compte à rebours</button>':''}`);
+}
+async function saveCountdown(){
+  const label=$('#cd-label').value.trim()||'Prochaine édition';
+  const date=$('#cd-date').value;
+  if(!date)return toast('Choisis une date',true);
+  const iso=new Date(date).toISOString();
+  const e1=await sb.from('config').upsert({cle:'countdown_date',valeur:iso},{onConflict:'cle'});
+  const e2=await sb.from('config').upsert({cle:'countdown_label',valeur:label},{onConflict:'cle'});
+  if(e1.error||e2.error)return toast((e1.error||e2.error).message,true);
+  closeModal();toast('Compte à rebours enregistré !');loadCountdown();
+}
+async function clearCountdown(){
+  await sb.from('config').upsert({cle:'countdown_date',valeur:''},{onConflict:'cle'});
+  closeModal();toast('Compte à rebours retiré');loadCountdown();
+}
 async function loadCover(){
   const cover=$('#homeCover');if(!cover)return;
   const {data}=await sb.from('config').select('valeur').eq('cle','cover_photo').maybeSingle();
