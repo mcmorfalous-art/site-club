@@ -66,22 +66,22 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .cover-edit{position:absolute;top:14px;right:14px;z-index:3;background:rgba(10,26,36,.7);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.8rem;padding:7px 12px;border-radius:8px;cursor:pointer;backdrop-filter:blur(4px)}
 .cover-edit:hover{background:var(--accent);color:#0a1a24}
 @media(max-width:600px){.cover{min-height:200px}.cover-content{padding:16px;gap:12px}.cover-logo img{width:72px;height:72px}.cover-titles h1{font-size:1.5rem}.cover-titles p{font-size:.8rem}}
-.countdown{position:relative;border-radius:12px;overflow:hidden;margin-bottom:20px;padding:20px;text-align:center;background:linear-gradient(135deg,#17415a,#102f42);border:1px solid var(--accent)}
-.cd-edit{position:absolute;top:10px;right:10px;background:rgba(10,26,36,.6);border:1px solid var(--line);color:var(--ink);font-size:.9rem;padding:4px 8px;border-radius:6px;cursor:pointer}
+.countdown{position:relative;border-radius:10px;overflow:hidden;margin-bottom:16px;padding:12px 14px;text-align:center;background:linear-gradient(135deg,#17415a,#102f42);border:1px solid var(--accent)}
+.cd-edit{position:absolute;top:7px;right:7px;background:rgba(10,26,36,.6);border:1px solid var(--line);color:var(--ink);font-size:.8rem;padding:3px 7px;border-radius:6px;cursor:pointer}
 .cd-edit:hover{border-color:var(--accent);color:var(--accent)}
-.cd-label{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);letter-spacing:.05em;font-size:1.1rem;margin-bottom:14px}
-.cd-timer{display:flex;align-items:center;justify-content:center;gap:8px}
-.cd-unit{display:flex;flex-direction:column;align-items:center;min-width:64px;background:rgba(10,26,36,.5);border-radius:8px;padding:10px 6px}
-.cd-num{font-family:var(--font-disp);font-weight:900;font-size:2rem;line-height:1;color:var(--ink)}
-.cd-txt{font-size:.7rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.05em;margin-top:4px}
-.cd-sep{font-family:var(--font-disp);font-weight:900;font-size:1.6rem;color:var(--accent);opacity:.5}
-.cd-date{margin-top:14px;color:var(--ink-dim);font-size:.9rem}
+.cd-label{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);letter-spacing:.04em;font-size:.85rem;margin-bottom:8px}
+.cd-timer{display:flex;align-items:center;justify-content:center;gap:5px}
+.cd-unit{display:flex;flex-direction:column;align-items:center;min-width:46px;background:rgba(10,26,36,.5);border-radius:6px;padding:6px 4px}
+.cd-num{font-family:var(--font-disp);font-weight:900;font-size:1.35rem;line-height:1;color:var(--ink)}
+.cd-txt{font-size:.6rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.04em;margin-top:2px}
+.cd-sep{font-family:var(--font-disp);font-weight:900;font-size:1.1rem;color:var(--accent);opacity:.5}
+.cd-date{margin-top:8px;color:var(--ink-dim);font-size:.8rem}
 .cd-admin-empty{text-align:center;margin-bottom:20px}
 .home-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
 .home-stats .hstat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 12px;text-align:center}
 .home-stats .hstat .n{font-family:var(--font-disp);font-weight:900;font-size:2.2rem;line-height:1;color:var(--accent)}
 .home-stats .hstat .l{font-size:.8rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.03em;margin-top:6px}
-@media(max-width:600px){.cd-unit{min-width:0;flex:1;padding:8px 2px}.cd-num{font-size:1.4rem}.cd-txt{font-size:.6rem}.cd-sep{font-size:1.1rem}.home-stats .hstat .n{font-size:1.6rem}}
+@media(max-width:600px){.cd-unit{min-width:0;flex:1;padding:5px 2px}.cd-num{font-size:1.15rem}.cd-txt{font-size:.55rem}.cd-sep{font-size:.9rem}.home-stats .hstat .n{font-size:1.6rem}}
 .hero-inner{padding:clamp(30px,5vw,56px) clamp(24px,5vw,60px)}
 .hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;align-items:center}
 .hero-logo{display:flex;justify-content:center;align-items:center}
@@ -525,6 +525,14 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <button class="btn btn-ghost admin-only btn-sm" style="margin-top:20px" onclick="openPageForm('notre-histoire','Notre histoire')">Modifier cette page</button>
 </section>
 
+<!-- MENTIONS LÉGALES -->
+<section class="page" id="page-mentions">
+  <div class="eyebrow">Informations légales</div>
+  <h1 class="title">Mentions légales</h1>
+  <div id="mentionsContent" style="margin-top:24px;max-width:70ch"><div class="loading">Chargement…</div></div>
+  <button class="btn btn-ghost admin-only btn-sm" style="margin-top:20px" onclick="openPageForm('mentions-legales','Mentions légales')">Modifier cette page</button>
+</section>
+
 <!-- OUVERTURE -->
 <section class="page" id="page-ouverture">
   <div class="eyebrow">Accès au terrain</div>
@@ -609,16 +617,25 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button id="installBtn" class="btn btn-ghost btn-sm" style="display:none;margin-top:14px" onclick="installApp()">📲 Installer l'app</button>
     </div>
     <div>
+      <h4 style="font-size:1rem">Contact</h4>
+      <p style="color:var(--ink-dim);line-height:1.9">
+        📍 71 rue Georges Clemenceau, 85770 Vix<br>
+        ✉️ <a href="mailto:mcmorfalous@gmail.com">mcmorfalous@gmail.com</a><br>
+        📘 <a href="https://www.facebook.com/morfalous85/" target="_blank" rel="noopener">Via Facebook</a>
+      </p>
+    </div>
+    <div>
       <h4 style="font-size:1rem">Le club</h4>
       <p style="color:var(--ink-dim);line-height:2">
         <a href="#" onclick="go('calendrier');return false">Calendrier</a><br>
         <a href="#" onclick="go('actualites');return false">Actualités</a><br>
         <a href="#" onclick="go('histoire');return false">Notre histoire</a><br>
+        <a href="#" onclick="go('licence');return false">Licence</a><br>
         <a href="#" onclick="go('partenaires');return false">Partenaires</a>
       </p>
     </div>
   </div>
-  <div class="footer-bottom">© <span id="year"></span> MC Les Morfalous · Site du club · <a class="link-discret" href="#" onclick="openAuth();return false">Espace bureau</a></div>
+  <div class="footer-bottom">© <span id="year"></span> MC Les Morfalous · Site du club · <a class="link-discret" href="#" onclick="go('mentions');return false">Mentions légales</a> · <a class="link-discret" href="#" onclick="openAuth();return false">Espace bureau</a></div>
 </footer>
 
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
@@ -797,6 +814,7 @@ const loaders={
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
   ouverture:loadOuverture, travaux:loadTravaux, participer:()=>{}, admin:loadAdmin,
+  mentions:loadMentions,
 };
 
 /* ===== TRAVAUX (dates créées par l'admin, plusieurs bénévoles par date) ===== */
@@ -1360,6 +1378,29 @@ async function loadPartenaires(){
 async function loadHistoire(){
   const {data}=await sb.from('pages').select('*').eq('slug','notre-histoire').maybeSingle();
   $('#histoireContent').innerHTML=data?`${data.image_url?`<img src="${esc(data.image_url)}" style="border-radius:8px;margin-bottom:20px" alt="">`:''}<div style="white-space:pre-wrap;line-height:1.8">${esc(data.contenu||'')}</div>`:emptyState("Cette page n'a pas encore de contenu.");
+}
+async function loadMentions(){
+  const {data}=await sb.from('pages').select('*').eq('slug','mentions-legales').maybeSingle();
+  if(data&&data.contenu){
+    $('#mentionsContent').innerHTML=`<div style="white-space:pre-wrap;line-height:1.8">${esc(data.contenu)}</div>`;
+  }else{
+    // contenu par défaut pour une association loi 1901
+    $('#mentionsContent').innerHTML=`<div style="line-height:1.8;color:var(--ink-dim)">
+      <h3 style="color:var(--ink);margin:0 0 8px">Éditeur du site</h3>
+      <p>Association <strong>MC Les Morfalous</strong> — Moto Club de Vix (Vendée), association loi 1901.<br>
+      Siège social : 71 rue Georges Clemenceau, 85770 Vix (Vendée).<br>
+      Contact : <a href="mailto:mcmorfalous@gmail.com">mcmorfalous@gmail.com</a></p>
+      <h3 style="color:var(--ink);margin:20px 0 8px">Directeur de la publication</h3>
+      <p>Le président de l'association.</p>
+      <h3 style="color:var(--ink);margin:20px 0 8px">Hébergement</h3>
+      <p>Ce site est hébergé par GitHub Pages (GitHub Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA).</p>
+      <h3 style="color:var(--ink);margin:20px 0 8px">Données personnelles</h3>
+      <p>Les informations recueillies via les formulaires (inscriptions aux événements, réservations) sont utilisées uniquement pour la gestion de la vie du club et ne sont ni vendues ni cédées à des tiers. Conformément au RGPD, vous pouvez demander l'accès, la rectification ou la suppression de vos données en écrivant à <a href="mailto:mcmorfalous@gmail.com">mcmorfalous@gmail.com</a>.</p>
+      <h3 style="color:var(--ink);margin:20px 0 8px">Propriété intellectuelle</h3>
+      <p>L'ensemble des contenus (textes, logos, photos) présents sur ce site sont la propriété de l'association MC Les Morfalous, sauf mention contraire. Toute reproduction sans autorisation est interdite.</p>
+      <p style="margin-top:24px;font-size:.85rem;font-style:italic">Ce texte est un modèle de base — l'association peut le compléter via le bouton « Modifier cette page ».</p>
+    </div>`;
+  }
 }
 async function loadLicence(){
   const {data}=await sb.from('pages').select('*').eq('slug','prise-licence').maybeSingle();
@@ -2228,7 +2269,7 @@ async function savePage(slug){
   const {error}=await sb.from('pages').upsert(p,{onConflict:'slug'});
   if(error)return toast(error.message,true);
   closeModal();toast('Enregistré');
-  if(slug==='notre-histoire')loadHistoire();else loadLicence();
+  if(slug==='notre-histoire')loadHistoire();else if(slug==='mentions-legales')loadMentions();else loadLicence();
 }
 /* ============ PANNEAU ADMIN ============ */
 let currentAdminTab='contenu';
