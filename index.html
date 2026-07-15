@@ -415,7 +415,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 <section class="page" id="page-calendrier">
   <div class="eyebrow">Agenda du club</div>
   <h1 class="title">Calendrier</h1>
-  <p class="lead" style="margin-bottom:28px">Travaux, roulages, courses et assemblées. Inscription par Doodle ou directement sur le site selon l'événement.</p>
+  <p class="lead" style="margin-bottom:28px">Travaux, roulages, courses et assemblées. Inscription directement sur le site selon l'événement.</p>
   <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openEventForm()">+ Nouvel événement</button>
   <div id="calendarList"><div class="loading">Chargement…</div></div>
 </section>
@@ -749,9 +749,6 @@ const loaders={
   ouverture:loadOuverture, travaux:loadTravaux, participer:()=>{}, admin:loadAdmin,
 };
 
-/* ---- Ouverture (créneaux Doodle fixes) ---- */
-// dow = jour de la semaine (0=dimanche, 1=lundi... 6=samedi)
-const TRAVAUX_LIEN='https://doodle.com/sign-up-sheet/participate/7c07ecdf-4d6c-4784-a725-5994ca463e37/select';
 /* ===== TRAVAUX (dates créées par l'admin, plusieurs bénévoles par date) ===== */
 async function loadTravaux(){
   const cont=$('#travauxList');cont.innerHTML='<div class="loading">Chargement…</div>';
@@ -1040,8 +1037,7 @@ function calItem(e){
   const dm=dayMonth(e.date_debut), heure=fmtTime(e.date_debut);
   const fin=e.date_fin?' → '+fmtTime(e.date_fin):'';
   let cta='';
-  if(e.lien_doodle) cta=`<a class="btn btn-primary btn-sm" href="${esc(e.lien_doodle)}" target="_blank" rel="noopener">S'inscrire sur Doodle ↗</a>`;
-  else if(e.inscriptions) cta=`<button class="btn btn-primary btn-sm" onclick="openInscription('${e.id}')">S'inscrire</button>`;
+  if(e.inscriptions) cta=`<button class="btn btn-primary btn-sm" onclick="openInscription('${e.id}')">S'inscrire</button>`;
   return `<div class="cal-item">
     <div class="cal-date"><div class="d">${dm.d}</div><div class="m">${dm.m}</div></div>
     <div class="cal-info">
@@ -1728,7 +1724,7 @@ const CHAMPS_PREDEF=[
 ];
 let _formChamps=[]; // champs en cours d'édition
 
-/* Événement (avec Doodle + constructeur de formulaire) */
+/* Événement (avec constructeur de formulaire d'inscription) */
 async function openEventForm(id){
   let e={};if(id){const{data}=await sb.from('evenements').select('*').eq('id',id).single();e=data||{};}
   const dt=e.date_debut?new Date(e.date_debut).toISOString().slice(0,16):'';
@@ -1741,7 +1737,6 @@ async function openEventForm(id){
     <div class="field"><label>Type</label><select id="ev-type">${['general','travaux','roulage','ag','repas','course'].map(t=>`<option ${e.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
     ${fld('Début','ev-debut',dt,'datetime-local')}
     ${fld('Fin (optionnel)','ev-fin',df,'datetime-local')}
-    ${fld('Lien Doodle (ouvertures/travaux)','ev-doodle',e.lien_doodle,'text','https://doodle.com/...')}
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="ev-ins" ${e.inscriptions?'checked':''} style="width:auto" onchange="toggleFormBuilder(this.checked)"> Inscription directe sur le site</label>
     <div id="formBuilder" style="${e.inscriptions?'':'display:none'};border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px">
       <h4 style="font-family:var(--font-disp);text-transform:uppercase;font-size:1rem;margin-bottom:10px">📋 Champs du formulaire</h4>
@@ -1812,7 +1807,7 @@ function confirmChampPerso(){
   renderChamps();
 }
 async function saveEvent(id){
-  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,lien_doodle:$('#ev-doodle').value.trim()||null,inscriptions:$('#ev-ins').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
+  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,inscriptions:$('#ev-ins').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
   if(!p.titre||!p.date_debut)return toast('Titre et date requis',true);
   const {error}=id?await sb.from('evenements').update(p).eq('id',id):await sb.from('evenements').insert(p);
   if(error)return toast(error.message,true);
