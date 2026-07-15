@@ -2,7 +2,7 @@
    Stratégie NETWORK-FIRST : on prend toujours la version en ligne si dispo,
    le cache ne sert QUE de secours hors-ligne. Évite d'afficher une vieille version figée.
    Pense à changer CACHE_VERSION à chaque grosse mise à jour. */
-const CACHE_VERSION = 'mcm-v1';
+const CACHE_VERSION = 'mcm-v2';
 const CORE = ['./', './index.html', './icon-192.png', './icon-512.png', './manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -30,5 +30,32 @@ self.addEventListener('fetch', (e) => {
         return res;
       })
       .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+  );
+});
+
+/* ===== NOTIFICATIONS PUSH ===== */
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (_) { data = { title: 'MC Les Morfalous', body: e.data ? e.data.text() : '' }; }
+  const title = data.title || 'MC Les Morfalous';
+  const options = {
+    body: data.body || '',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: data.tag || 'mcm-notif',
+    data: { url: data.url || './' },
+    vibrate: [100, 50, 100],
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });
