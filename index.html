@@ -81,6 +81,11 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .home-stats .hstat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 12px;text-align:center}
 .home-stats .hstat .n{font-family:var(--font-disp);font-weight:900;font-size:2.2rem;line-height:1;color:var(--accent)}
 .home-stats .hstat .l{font-size:.8rem;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.03em;margin-top:6px}
+.actu-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.actu-filters button{background:var(--surface);border:1px solid var(--line);color:var(--ink-dim);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.82rem;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .12s}
+.actu-filters button:hover{border-color:var(--accent);color:var(--ink)}
+.actu-filters button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
+.actu-cat-tag{display:inline-block;font-size:.7rem;text-transform:uppercase;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:4px;background:var(--surface-2);color:var(--accent);margin-bottom:8px}
 @media(max-width:600px){.cd-unit{min-width:0;flex:1;padding:5px 2px}.cd-num{font-size:1.15rem}.cd-txt{font-size:.55rem}.cd-sep{font-size:.9rem}.home-stats .hstat .n{font-size:1.6rem}}
 .hero-inner{padding:clamp(30px,5vw,56px) clamp(24px,5vw,60px)}
 .hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;align-items:center}
@@ -474,6 +479,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <h1 class="title">Actualités</h1>
   <p class="lead" style="margin-bottom:28px">Comptes-rendus de réunions, travaux et infos pratiques.</p>
   <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openActuForm()">+ Nouvel article</button>
+  <div class="actu-filters" id="actuFilters"></div>
   <div class="grid grid-3" id="actusList"><div class="loading">Chargement…</div></div>
 </section>
 
@@ -1313,9 +1319,12 @@ async function loadCalendar(){
 
 /* ---- Actus ---- */
 function actuCard(a){
+  const catLabels={actualite:'Actu',bureau:'Bureau',travaux:'Travaux',ouverture:'Ouverture'};
+  const cat=a.categorie&&catLabels[a.categorie]?a.categorie:null;
   return `<div class="card">
     ${a.image_url?`<img class="card-img" src="${esc(a.image_url)}" alt="" loading="lazy">`:''}
     <div class="card-body">
+      ${cat?`<span class="actu-cat-tag">${catLabels[cat]}</span>`:''}
       <span class="card-date">${fmtDate(a.date_publi)}</span>
       <h3>${esc(a.titre)}</h3>
       <p>${esc(a.resume||(a.contenu||'').slice(0,140))}</p>
@@ -1328,10 +1337,26 @@ function actuCard(a){
     </div>
   </div>`;
 }
+let _actusCache=[], _actuFilter='tous';
 async function loadActus(){
   const {data}=await sb.from('actualites').select('*').order('date_publi',{ascending:false});
-  const list=isAdmin?data:(data||[]).filter(a=>a.publie);
-  $('#actusList').innerHTML=(list?.length)?list.map(actuCard).join(''):emptyState("Pas encore d'article.");
+  _actusCache=isAdmin?(data||[]):(data||[]).filter(a=>a.publie);
+  renderActuFilters();
+  renderActus();
+}
+function renderActuFilters(){
+  const cont=$('#actuFilters');if(!cont)return;
+  const catLabels={tous:'Tout',actualite:'Actus',bureau:'Bureau',travaux:'Travaux',ouverture:'Ouverture'};
+  // n'afficher que les catégories qui ont au moins un article
+  const present=new Set(_actusCache.map(a=>a.categorie||'actualite'));
+  const cats=['tous',...['actualite','bureau','travaux','ouverture'].filter(c=>present.has(c))];
+  if(cats.length<=2){cont.innerHTML='';return;} // pas la peine de filtrer s'il n'y a qu'une catégorie
+  cont.innerHTML=cats.map(c=>`<button class="${_actuFilter===c?'active':''}" onclick="filterActus('${c}')">${catLabels[c]}</button>`).join('');
+}
+function filterActus(cat){_actuFilter=cat;renderActuFilters();renderActus();}
+function renderActus(){
+  const list=_actuFilter==='tous'?_actusCache:_actusCache.filter(a=>(a.categorie||'actualite')===_actuFilter);
+  $('#actusList').innerHTML=(list.length)?list.map(actuCard).join(''):emptyState("Aucun article dans cette catégorie.");
 }
 async function openActu(id){
   const {data:a}=await sb.from('actualites').select('*').eq('id',id).single();
