@@ -46,6 +46,8 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,26,36,.92);backdrop-
 .nav-cta:hover{background:var(--accent-2)!important}
 .burger{display:none;margin-left:auto;font-size:1.6rem;color:var(--ink)}
 main{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+#backBtn{display:none;align-items:center;gap:6px;margin:16px 0 0;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.9rem;padding:8px 16px;border-radius:8px;cursor:pointer;transition:transform .12s,border-color .12s}
+#backBtn:hover{transform:translateX(-3px);border-color:var(--accent);color:var(--accent)}
 .page{display:none;padding:40px 0 80px;animation:fade .3s ease}
 .page.active{display:block}
 @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -330,6 +332,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 <div class="hazard"></div>
 
 <main>
+<button id="backBtn" onclick="go('accueil')" style="display:none" aria-label="Retour à l'accueil">← Accueil</button>
 
 <!-- ACCUEIL -->
 <section class="page active" id="page-accueil">
@@ -359,14 +362,14 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile" onclick="go('calendrier')">
       <span class="ico">📅</span><h3>Calendrier</h3><p>Prochains rendez-vous</p>
     </button>
-    <button class="tile" onclick="go('actualites')">
-      <span class="ico">📰</span><h3>Actus</h3><p>Vie du club</p>
-    </button>
     <button class="tile tile-open" onclick="go('ouverture')">
       <span class="ico">🔑</span><h3>Ouverture</h3><p>Créneaux terrain</p>
     </button>
     <button class="tile tile-travaux" onclick="go('travaux')">
       <span class="ico">🔧</span><h3>Travaux</h3><p>S'inscrire aux chantiers</p>
+    </button>
+    <button class="tile" onclick="go('actualites')">
+      <span class="ico">📰</span><h3>Actus</h3><p>Vie du club</p>
     </button>
     <button class="tile" onclick="go('resultats')">
       <span class="ico">🏁</span><h3>Résultats</h3><p>Nos pilotes en course</p>
@@ -374,8 +377,8 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile" onclick="go('photos')">
       <span class="ico">📸</span><h3>Photos</h3><p>Albums du club</p>
     </button>
-    <button class="tile hot" id="tileProno" onclick="openExternal('lien_prono')">
-      <span class="ico">🏆</span><h3>Prono du club <span class="ext">↗</span></h3><p>Joue tes pronostics</p>
+    <button class="tile" id="tileBoutique" onclick="openExternal('lien_boutique')">
+      <span class="ico">🛒</span><h3>Boutique <span class="ext">↗</span></h3><p>Aux couleurs du club</p>
     </button>
     <button class="tile" onclick="go('bureau')">
       <span class="ico">👥</span><h3>Le bureau</h3><p>L'équipe du club</p>
@@ -384,13 +387,13 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <span class="ico">📋</span><h3>Licence</h3><p>Rejoindre le club</p>
     </button>
     <button class="tile" onclick="go('participer')">
-      <span class="ico">💡</span><h3>Participer</h3><p>Ta boîte à idées</p>
+      <span class="ico">💡</span><h3>La parole aux membres</h3><p>Partage tes idées</p>
     </button>
     <button class="tile" onclick="go('partenaires')">
       <span class="ico">🤝</span><h3>Partenaires</h3><p>Ils nous soutiennent</p>
     </button>
-    <button class="tile" id="tileBoutique" onclick="openExternal('lien_boutique')">
-      <span class="ico">🛒</span><h3>Boutique <span class="ext">↗</span></h3><p>Aux couleurs du club</p>
+    <button class="tile hot" id="tileProno" onclick="openExternal('lien_prono')">
+      <span class="ico">🏆</span><h3>Prono du club</h3><p>Joue tes pronostics</p>
     </button>
   </div>
 
@@ -513,7 +516,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 <!-- PARTICIPER -->
 <section class="page" id="page-participer">
   <div class="eyebrow">Ta voix compte</div>
-  <h1 class="title">Participer</h1>
+  <h1 class="title">La parole aux membres</h1>
   <p class="lead" style="margin-bottom:32px">Propose tes idées et fais vivre le club.</p>
   <div class="form-box" style="margin:0 auto">
     <h2 class="section-title" style="margin-bottom:16px">💡 Boîte à idées</h2>
@@ -607,6 +610,8 @@ function go(page){
   $('#navLinks').classList.remove('open');
   window.scrollTo(0,0);
   const sh=$('#scrollHint');if(sh)sh.style.opacity='0';
+  // bouton retour : visible partout sauf l'accueil
+  const bb=$('#backBtn');if(bb)bb.style.display=(page==='accueil')?'none':'flex';
   loaders[page]?.();
 }
 function openModal(t,h){$('#modalTitle').textContent=t;$('#modalBody').innerHTML=h;$('#modalBg').classList.add('open');}
@@ -997,22 +1002,32 @@ async function delRespo(id){
 }
 
 /* ---- Accueil ---- */
+/* Convertit une date de travaux en "pseudo-événement" pour l'affichage calendrier */
+function travauxAsEvent(t){
+  const start=t.date_jour+'T'+(t.horaire?'09:00:00':'09:00:00');
+  return {id:t.id,titre:t.titre||'Journée travaux',type:'travaux',lieu:'Terrain',
+    date_debut:new Date(t.date_jour+'T09:00:00').toISOString(),date_fin:null,
+    description:t.note||'',_isTravaux:true};
+}
 async function loadHome(){
   const now=new Date().toISOString();
-  const {data:evs}=await sb.from('evenements').select('*').gte('date_debut',now).order('date_debut').limit(1);
+  const today=isoD(new Date());
+  const {data:evsRaw}=await sb.from('evenements').select('*').gte('date_debut',now).order('date_debut');
+  const {data:travRaw}=await sb.from('travaux_dates').select('*').gte('date_jour',today).order('date_jour');
   const {data:acts}=await sb.from('actualites').select('*').eq('publie',true).order('date_publi',{ascending:false}).limit(3);
-  const {count:evCount}=await sb.from('evenements').select('*',{count:'exact',head:true}).gte('date_debut',now);
+  // fusionner événements + travaux, trier par date
+  const evs=[...(evsRaw||[]),...((travRaw||[]).map(travauxAsEvent))].sort((a,b)=>new Date(a.date_debut)-new Date(b.date_debut));
+  $('#statEvents').textContent=evs.length;
   const {count:acCount}=await sb.from('actualites').select('*',{count:'exact',head:true}).eq('publie',true);
-  $('#statEvents').textContent=evCount??0;
   $('#statActus').textContent=acCount??0;
   // bande prochain RDV
   const nr=$('#nextRdv');
-  if(evs?.length){
+  if(evs.length){
     const e=evs[0], dm=dayMonth(e.date_debut);
     $('#nextRdvContent').innerHTML=`<span class="nr-date">${dm.d} ${dm.m}</span>${esc(e.titre)}${e.lieu?' · '+esc(e.lieu):''}`;
     nr.style.display='flex';
   } else nr.style.display='none';
-  $('#homeCalendar').innerHTML=(evs?.length)?evs.map(calItem).join(''):emptyState('Aucun événement à venir.');
+  $('#homeCalendar').innerHTML=(evs.length)?evs.slice(0,3).map(calItem).join(''):emptyState('Aucun événement à venir.');
   $('#homeActus').innerHTML=(acts?.length)?acts.map(actuCard).join(''):emptyState("Pas encore d'actualité.");
   setupScrollHint();
   loadPartnersStrip();
@@ -1036,6 +1051,20 @@ function setupScrollHint(){
 function calItem(e){
   const dm=dayMonth(e.date_debut), heure=fmtTime(e.date_debut);
   const fin=e.date_fin?' → '+fmtTime(e.date_fin):'';
+  // cas spécial : date de travaux → renvoie vers la page Travaux
+  if(e._isTravaux){
+    return `<div class="cal-item">
+      <div class="cal-date"><div class="d">${dm.d}</div><div class="m">${dm.m}</div></div>
+      <div class="cal-info">
+        <span class="tag travaux">travaux</span>
+        <h3 style="margin-top:6px">${esc(e.titre)}</h3>
+        <div class="meta">${e.description?`<span>${esc(e.description)}</span>`:'<span>Journée travaux du club</span>'}</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-primary btn-sm" onclick="go('travaux')">Voir / s'inscrire</button>
+      </div>
+    </div>`;
+  }
   let cta='';
   if(e.inscriptions) cta=`<button class="btn btn-primary btn-sm" onclick="openInscription('${e.id}')">S'inscrire</button>`;
   return `<div class="cal-item">
@@ -1090,7 +1119,10 @@ function calIcs(){
 }
 async function loadCalendar(){
   const {data}=await sb.from('evenements').select('*').order('date_debut');
-  $('#calendarList').innerHTML=(data?.length)?data.map(calItem).join(''):emptyState('Aucun événement programmé.');
+  const today=isoD(new Date());
+  const {data:trav}=await sb.from('travaux_dates').select('*').gte('date_jour',today);
+  const all=[...(data||[]),...((trav||[]).map(travauxAsEvent))].sort((a,b)=>new Date(a.date_debut)-new Date(b.date_debut));
+  $('#calendarList').innerHTML=(all.length)?all.map(calItem).join(''):emptyState('Aucun événement programmé.');
 }
 
 /* ---- Actus ---- */
