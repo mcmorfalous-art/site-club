@@ -320,7 +320,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button data-page="actualites" onclick="go('actualites')">Actus</button>
       <button onclick="openExternal('lien_prono')">🏆 Prono ↗</button>
       <button class="nav-open" data-page="ouverture" onclick="go('ouverture')">Ouverture</button>
-      <button class="nav-travaux" onclick="openTravaux()">Travaux ↗</button>
+      <button class="nav-travaux" data-page="travaux" onclick="go('travaux')">Travaux</button>
       <button id="btnBureau" class="nav-bureau" onclick="bureauClick()">🔒 Bureau</button>
       <button class="admin-only nav-cta" data-page="admin" onclick="go('admin')" style="background:var(--hot)!important;color:#fff!important">Admin</button>
     </nav>
@@ -365,8 +365,8 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile tile-open" onclick="go('ouverture')">
       <span class="ico">🔑</span><h3>Ouverture</h3><p>Créneaux terrain</p>
     </button>
-    <button class="tile tile-travaux" onclick="openTravaux()">
-      <span class="ico">🔧</span><h3>Travaux <span class="ext">↗</span></h3><p>S'inscrire au Doodle</p>
+    <button class="tile tile-travaux" onclick="go('travaux')">
+      <span class="ico">🔧</span><h3>Travaux</h3><p>S'inscrire aux chantiers</p>
     </button>
     <button class="tile" onclick="go('resultats')">
       <span class="ico">🏁</span><h3>Résultats</h3><p>Nos pilotes en course</p>
@@ -486,6 +486,19 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="info-pratique">
     <h3>🔑 Infos pratiques</h3>
     <p>Le responsable d'ouverture s'engage à ouvrir le terrain et assurer la permanence sur le créneau choisi. Merci de t'inscrire à l'avance pour que chaque créneau soit couvert. En cas d'empêchement, préviens le bureau.</p>
+  </div>
+</section>
+
+<!-- TRAVAUX -->
+<section class="page" id="page-travaux">
+  <div class="eyebrow">Chantiers du club</div>
+  <h1 class="title">Travaux du terrain</h1>
+  <p class="lead" style="margin-bottom:28px">Inscris-toi pour donner un coup de main lors des journées travaux. Choisis une date ci-dessous.</p>
+  <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openTravauxDateForm()">+ Nouvelle date de travaux</button>
+  <div id="travauxList"></div>
+  <div class="info-pratique" style="margin-top:28px">
+    <h3>🔧 Infos pratiques</h3>
+    <p>Les journées travaux permettent d'entretenir le terrain (préparation, réparations…). Chaque coup de main compte ! Indique si tu restes au casse-croûte pour qu'on prévoie.</p>
   </div>
 </section>
 
@@ -733,13 +746,88 @@ const loaders={
   accueil:loadHome, calendrier:loadCalendar, actualites:loadActus,
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
-  ouverture:loadOuverture, participer:()=>{}, admin:loadAdmin,
+  ouverture:loadOuverture, travaux:loadTravaux, participer:()=>{}, admin:loadAdmin,
 };
 
 /* ---- Ouverture (créneaux Doodle fixes) ---- */
 // dow = jour de la semaine (0=dimanche, 1=lundi... 6=samedi)
 const TRAVAUX_LIEN='https://doodle.com/sign-up-sheet/participate/7c07ecdf-4d6c-4784-a725-5994ca463e37/select';
-function openTravaux(){ window.open(TRAVAUX_LIEN,'_blank','noopener'); }
+/* ===== TRAVAUX (dates créées par l'admin, plusieurs bénévoles par date) ===== */
+async function loadTravaux(){
+  const cont=$('#travauxList');cont.innerHTML='<div class="loading">Chargement…</div>';
+  const today=isoD(new Date());
+  const {data:dates}=await sb.from('travaux_dates').select('*').gte('date_jour',today).order('date_jour');
+  if(!dates?.length){cont.innerHTML=emptyState('Aucune date de travaux prévue pour le moment.');return;}
+  const {data:inscs}=await sb.from('travaux_inscriptions').select('*');
+  const byDate={};(inscs||[]).forEach(i=>{(byDate[i.travaux_id]=byDate[i.travaux_id]||[]).push(i);});
+  cont.innerHTML=dates.map(d=>{
+    const list=byDate[d.id]||[];
+    const dateStr=new Date(d.date_jour+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const casse=list.filter(i=>i.casse_croute).length;
+    return `<div class="card" style="margin-bottom:16px"><div class="card-body">
+      <span class="card-date">${esc(dateStr)}${d.horaire?' · '+esc(d.horaire):''}</span>
+      <h3>${esc(d.titre||'Journée travaux')}</h3>
+      ${d.note?`<p style="color:var(--ink-dim);margin:6px 0">${esc(d.note)}</p>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+        <button class="btn btn-primary btn-sm" onclick="openTravauxInscription('${d.id}','${esc(dateStr).replace(/'/g,'')}')">✋ Je participe</button>
+        <button class="btn btn-ghost btn-sm" onclick="travAddToCalendar('${d.date_jour}','${esc(d.horaire||'')}','${esc(d.titre||'Journée travaux').replace(/'/g,'')}')">📅 Calendrier</button>
+        <button class="btn btn-ghost btn-sm admin-only" onclick="openTravauxDateForm('${d.id}')">✎</button>
+        <button class="btn btn-danger btn-sm admin-only" onclick="delRow('travaux_dates','${d.id}','travaux')">✕</button>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:10px">
+        <strong style="font-size:.9rem">${list.length} inscrit${list.length>1?'s':''}${casse?` · ${casse} au casse-croûte`:''}</strong>
+        ${list.length?`<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${list.map(i=>`<div style="display:flex;align-items:center;gap:8px;font-size:.9rem"><span style="color:var(--ink)">${esc(i.nom)}</span><span style="color:var(--ink-dim);font-size:.82rem">${i.statut==='pilote'?'🏍️ pilote':'🙋 bénévole'}${i.casse_croute?' · 🥪':''}</span>${isAdmin?`<button class="btn btn-danger btn-sm" style="margin-left:auto;padding:2px 8px" onclick="delRow('travaux_inscriptions','${i.id}','travaux')">✕</button>`:''}</div>`).join('')}</div>`:'<p style="color:var(--ink-dim);font-size:.85rem;margin-top:6px">Sois le premier à t\'inscrire !</p>'}
+      </div>
+    </div></div>`;
+  }).join('');
+}
+async function openTravauxDateForm(id){
+  let d={};if(id){const{data}=await sb.from('travaux_dates').select('*').eq('id',id).single();d=data||{};}
+  openModal(id?'Modifier la date':'Nouvelle date de travaux',`
+    ${fld('Date','td-date',d.date_jour,'date')}
+    ${fld('Horaire (optionnel)','td-horaire',d.horaire,'text','9h - 12h')}
+    ${fld('Titre (optionnel)','td-titre',d.titre,'text','Entretien du terrain')}
+    ${ar('Note (optionnel)','td-note',d.note,'Matériel à prévoir, précisions…')}
+    <button class="btn btn-primary" onclick="saveTravauxDate('${id||''}')">Enregistrer</button>`);
+}
+async function saveTravauxDate(id){
+  const p={date_jour:$('#td-date').value||null,horaire:$('#td-horaire').value.trim()||null,titre:$('#td-titre').value.trim()||null,note:$('#td-note').value.trim()||null};
+  if(!p.date_jour)return toast('La date est requise',true);
+  const {error}=id?await sb.from('travaux_dates').update(p).eq('id',id):await sb.from('travaux_dates').insert(p);
+  if(error)return toast(error.message,true);
+  closeModal();toast('Date enregistrée');loadTravaux();
+}
+function openTravauxInscription(travauxId,dateStr){
+  openModal('Participer aux travaux',`
+    <p style="margin:0 0 16px;color:var(--ink-dim)">${esc(dateStr)}</p>
+    ${fld('Nom / Prénom','ti-nom','','text','Ton nom')}
+    <div class="field"><label>Tu es…</label>
+      <select id="ti-statut"><option value="bénévole">Bénévole</option><option value="pilote">Pilote</option></select>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input type="checkbox" id="ti-casse" style="width:auto"> Je reste au casse-croûte 🥪</label>
+    <button class="btn btn-primary" onclick="submitTravauxInscription('${travauxId}')">Je m'inscris</button>`);
+}
+async function submitTravauxInscription(travauxId){
+  const nom=$('#ti-nom').value.trim();
+  if(!nom)return toast('Ton nom est requis',true);
+  const {error}=await sb.from('travaux_inscriptions').insert({
+    travaux_id:travauxId,nom,statut:$('#ti-statut').value,casse_croute:$('#ti-casse').checked});
+  if(error)return toast(error.message,true);
+  closeModal();toast('Merci pour ton aide ! 🔧');loadTravaux();
+}
+/* Ajout d'une date de travaux au calendrier */
+function travAddToCalendar(iso,horaire,titre){
+  const nums=(horaire.match(/\d{1,2}/g)||['9','12']).map(n=>parseInt(n));
+  const hStart=nums[0]||9, hEnd=nums[nums.length-1]||12;
+  const pad=n=>String(n).padStart(2,'0');
+  const s=iso.replace(/-/g,'')+'T'+pad(hStart)+'0000', e=iso.replace(/-/g,'')+'T'+pad(hEnd)+'0000';
+  openModal('Ajouter à mon calendrier',`
+    <p style="color:var(--ink-dim);margin-bottom:18px">Choisis ton agenda :</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" onclick="ouvCalGoogle('${s}','${e}','${esc(titre)} — MC Les Morfalous','Journée travaux du club')">📅 Google Agenda</button>
+      <button class="btn btn-ghost" onclick="ouvCalIcs('${s}','${e}','${esc(titre)} — MC Les Morfalous','Journée travaux du club')">🍎 Apple / Outlook / autre (.ics)</button>
+    </div>`);
+}
 
 /* ===== Calendrier de réservation des responsables d'ouverture =====
    Règles 2026 :
@@ -845,6 +933,7 @@ function ouvShowDay(iso){
         ${resa.telephone?`<p style="margin:6px 0 0;color:var(--ink-dim);font-size:.9rem">📞 ${esc(resa.telephone)}</p>`:''}
         ${isAdmin&&resa.licence?`<p style="margin:6px 0 0;color:var(--ink-dim);font-size:.9rem">Licence : ${esc(resa.licence)}</p>`:''}
       </div>
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:10px" onclick="ouvAddToCalendar('${iso}','${esc(horaire)}')">📅 Ajouter à mon calendrier</button>
       ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="delRespo('${resa.id}')">Annuler cette réservation</button>`:'<p style="color:var(--ink-dim);font-size:.85rem">Ce créneau a déjà un responsable.</p>'}`);
     return;
   }
@@ -857,6 +946,36 @@ function ouvShowDay(iso){
     ${fld('Numéro de licence','respo-lic','','text','')}
     <button class="btn btn-primary" onclick="submitRespo('${iso}','${esc(horaire)}')">Je m'inscris comme responsable</button>`);
 }
+/* Ajout du créneau d'ouverture au calendrier (Google ou .ics) */
+function ouvAddToCalendar(iso,horaire){
+  // horaire ex "10h – 12h" ou "10h – 12h & 14h – 18h" : on prend le début et la fin globale
+  const nums=(horaire.match(/\d{1,2}/g)||['10','12']).map(n=>parseInt(n));
+  const hStart=nums[0]||10, hEnd=nums[nums.length-1]||12;
+  const pad=n=>String(n).padStart(2,'0');
+  const dtStart=iso.replace(/-/g,'')+'T'+pad(hStart)+'0000';
+  const dtEnd=iso.replace(/-/g,'')+'T'+pad(hEnd)+'0000';
+  const titre='Responsable ouverture terrain — MC Les Morfalous';
+  const details='Tu es responsable de l\'ouverture du terrain ('+horaire+').';
+  openModal('Ajouter à mon calendrier',`
+    <p style="color:var(--ink-dim);margin-bottom:18px">Choisis ton agenda :</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" onclick="ouvCalGoogle('${dtStart}','${dtEnd}','${esc(titre)}','${esc(details)}')">📅 Google Agenda</button>
+      <button class="btn btn-ghost" onclick="ouvCalIcs('${dtStart}','${dtEnd}','${esc(titre)}','${esc(details)}')">🍎 Apple / Outlook / autre (.ics)</button>
+    </div>`);
+}
+function ouvCalGoogle(s,e,titre,details){
+  const params=new URLSearchParams({action:'TEMPLATE',text:titre,dates:s+'/'+e,details:details,location:'Terrain MC Les Morfalous, Vix'});
+  window.open('https://calendar.google.com/calendar/render?'+params.toString(),'_blank','noopener');
+  closeModal();
+}
+function ouvCalIcs(s,e,titre,details){
+  const esc2=x=>(x||'').replace(/([,;\\])/g,'\\$1');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//MC Les Morfalous//FR','BEGIN:VEVENT','UID:'+s+'@mcmorfalous','DTSTAMP:'+s,'DTSTART:'+s,'DTEND:'+e,'SUMMARY:'+esc2(titre),'DESCRIPTION:'+esc2(details),'LOCATION:Terrain MC Les Morfalous, Vix','BEGIN:VALARM','TRIGGER:-P1D','ACTION:DISPLAY','DESCRIPTION:Rappel ouverture terrain','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='ouverture-terrain.ics';a.click();URL.revokeObjectURL(a.href);
+  closeModal();toast('Fichier téléchargé 📅');
+}
 async function submitRespo(iso,horaire){
   const nom=$('#respo-nom').value.trim();
   if(!nom)return toast('Ton nom est requis',true);
@@ -867,7 +986,10 @@ async function submitRespo(iso,horaire){
     if(error.code==='23505')return toast('Ce jour vient d\'être pris par quelqu\'un d\'autre',true);
     return toast(error.message,true);
   }
-  closeModal();toast('Merci ! Tu es responsable de ce créneau 🔑');loadOuverture();
+  toast('Merci ! Tu es responsable de ce créneau 🔑');
+  await loadOuverture();
+  // proposer d'ajouter à son calendrier
+  ouvAddToCalendar(iso,horaire);
 }
 async function delRespo(id){
   if(!confirm('Annuler cette réservation ?'))return;
