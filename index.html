@@ -222,8 +222,15 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 .res-admin-tabs button.active{background:var(--accent);color:#0a1a24}
 .notif-btn.notif-on{background:var(--green)!important;border-color:var(--green)!important;color:#0a1a24!important}
 .notif-btn{display:block}
-.arch-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
-.arch-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:7px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.88rem;border:1px solid transparent}
+body.is-admin #ouvArchiveWrap,body.is-admin #travArchiveWrap,
+body.is-admin #calInscriptionsWrap,body.is-admin #resAdminWrap,
+body.is-admin #adminsWrap,body.is-admin #ideesRecuesWrap,
+body.is-admin #pushAdminWrap{display:block!important;width:100%}
+.arch-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px;width:100%;clear:both}
+#ouvArchiveWrap,#travArchiveWrap{display:block;width:100%}
+#ouvArchiveWrap .section-title,#travArchiveWrap .section-title,
+#ouvArchiveContent,#travArchiveContent{width:100%;display:block}
+.arch-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:7px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.88rem;border:1px solid transparent;cursor:pointer;background:var(--surface)}
 .arch-tabs button.active{background:var(--accent);color:#0a1a24}
 .arch-month{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);font-size:1rem;margin:20px 0 10px;letter-spacing:.03em}
 .arch-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:8px}
