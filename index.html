@@ -351,6 +351,42 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 #splash .spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface-2);border-top-color:var(--accent);animation:spin .8s linear infinite;margin-top:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){#splash *{animation:none!important}}
+
+/* ===== MOBILE : plus d'air, moins tassé ===== */
+@media(max-width:600px){
+  main{padding:0 16px}
+  .page{padding:24px 0 64px}
+  h1.title{font-size:clamp(1.9rem,8vw,2.6rem);margin-bottom:10px}
+  .eyebrow{margin-bottom:12px}
+  .lead{font-size:1rem;line-height:1.5;margin-bottom:8px}
+  /* espace entre les cartes et blocs */
+  .card{margin-bottom:14px}
+  .card-body{padding:16px;gap:10px}
+  .tile{padding:16px}
+  .admin-card{padding:16px}
+  .info-pratique{padding:18px;margin-top:24px!important}
+  /* sections : plus de respiration verticale */
+  .home-stats{gap:10px;margin-bottom:24px}
+  .actu-filters{margin-bottom:20px;gap:6px}
+  .actu-filters button{font-size:.78rem;padding:6px 12px}
+  /* grilles : une colonne bien espacée */
+  .grid,.grid-3,.grid-4{gap:14px!important}
+  /* boutons plus confortables au doigt */
+  .btn{padding:10px 16px}
+  .btn-sm{padding:8px 13px}
+  /* modales : marges internes */
+  .modal-body{padding:20px 18px}
+  .modal-head{padding:16px 18px}
+  .field{margin-bottom:14px}
+  /* titres de section aérés */
+  h2.section-title{margin-top:8px}
+  /* archives lisibles */
+  .arch-row,.arch-pilote{padding:12px 14px}
+}
+@media(max-width:400px){
+  main{padding:0 12px}
+  h1.title{font-size:1.7rem}
+}
 </style>
 </head>
 <body>
