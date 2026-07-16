@@ -222,6 +222,15 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 .res-admin-tabs button.active{background:var(--accent);color:#0a1a24}
 .notif-btn.notif-on{background:var(--green)!important;border-color:var(--green)!important;color:#0a1a24!important}
 .notif-btn{display:block}
+.arch-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.arch-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:7px 14px;border-radius:var(--radius);color:var(--ink-dim);font-size:.88rem;border:1px solid transparent}
+.arch-tabs button.active{background:var(--accent);color:#0a1a24}
+.arch-month{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;color:var(--accent);font-size:1rem;margin:20px 0 10px;letter-spacing:.03em}
+.arch-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:8px}
+.arch-row .d{color:var(--ink-dim);font-size:.85rem}
+.arch-row .n{font-weight:600}
+.arch-pilote{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin-bottom:8px}
+.arch-pilote .count{background:var(--accent);color:#0a1a24;font-family:var(--font-disp);font-weight:800;padding:2px 12px;border-radius:20px;font-size:1rem}
 .admin-list-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:8px}
 .admin-list-row .info{min-width:0;flex:1}
 .admin-list-row .info strong{font-family:var(--font-disp);text-transform:uppercase;font-size:1.05rem}
@@ -582,6 +591,15 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <h3>🔑 Infos pratiques</h3>
     <p>Le responsable d'ouverture s'engage à ouvrir le terrain et assurer la permanence sur le créneau choisi. Merci de t'inscrire à l'avance pour que chaque créneau soit couvert. En cas d'empêchement, préviens le bureau.</p>
   </div>
+  <div class="admin-only" id="ouvArchiveWrap" style="margin-top:40px;display:none">
+    <h2 class="section-title" style="margin-bottom:8px">📚 Archive des ouvertures</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Historique des ouvertures passées — pour le suivi des engagements pilotes (réservé au bureau).</p>
+    <div class="arch-tabs" id="ouvArchTabs">
+      <button class="active" onclick="ouvArchTab('date',this)">Par date</button>
+      <button onclick="ouvArchTab('pilote',this)">Par pilote</button>
+    </div>
+    <div id="ouvArchiveContent"><div class="loading">Chargement…</div></div>
+  </div>
 </section>
 
 <!-- TRAVAUX -->
@@ -594,6 +612,15 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="info-pratique" style="margin-top:28px">
     <h3>🔧 Infos pratiques</h3>
     <p>Les journées travaux permettent d'entretenir le terrain (préparation, réparations…). Chaque coup de main compte ! Indique si tu restes au casse-croûte pour qu'on prévoie.</p>
+  </div>
+  <div class="admin-only" id="travArchiveWrap" style="margin-top:40px;display:none">
+    <h2 class="section-title" style="margin-bottom:8px">📚 Archive des travaux</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Historique des journées travaux passées — pour le suivi de la participation (réservé au bureau).</p>
+    <div class="arch-tabs" id="travArchTabs">
+      <button class="active" onclick="travArchTab('date',this)">Par date</button>
+      <button onclick="travArchTab('benevole',this)">Par bénévole</button>
+    </div>
+    <div id="travArchiveContent"><div class="loading">Chargement…</div></div>
   </div>
 </section>
 
@@ -869,8 +896,10 @@ async function loadTravaux(){
   const cont=$('#travauxList');cont.innerHTML='<div class="loading">Chargement…</div>';
   const today=isoD(new Date());
   const {data:dates}=await sb.from('travaux_dates').select('*').gte('date_jour',today).order('date_jour');
-  if(!dates?.length){cont.innerHTML=emptyState('Aucune date de travaux prévue pour le moment.');return;}
   const {data:inscs}=await sb.from('travaux_inscriptions').select('*');
+  if(!dates?.length){
+    cont.innerHTML=emptyState('Aucune date de travaux prévue pour le moment.');
+  }else{
   const byDate={};(inscs||[]).forEach(i=>{(byDate[i.travaux_id]=byDate[i.travaux_id]||[]).push(i);});
   cont.innerHTML=dates.map(d=>{
     const list=byDate[d.id]||[];
@@ -892,6 +921,60 @@ async function loadTravaux(){
       </div>
     </div></div>`;
   }).join('');
+  }
+  // archive admin
+  const wrap=$('#travArchiveWrap');
+  if(wrap){
+    if(isAdmin){wrap.style.display='block';loadTravArchive();}
+    else wrap.style.display='none';
+  }
+}
+let _travArchTab='date', _travArchData=null;
+function travArchTab(tab,btn){
+  _travArchTab=tab;
+  $$('#travArchTabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderTravArchive();
+}
+async function loadTravArchive(){
+  const today=isoD(new Date());
+  const {data:dates}=await sb.from('travaux_dates').select('*').lt('date_jour',today).order('date_jour',{ascending:false});
+  const {data:inscs}=await sb.from('travaux_inscriptions').select('*');
+  _travArchData={dates:dates||[],inscs:inscs||[]};
+  renderTravArchive();
+}
+function renderTravArchive(){
+  const c=$('#travArchiveContent');if(!c)return;
+  const {dates,inscs}=_travArchData||{dates:[],inscs:[]};
+  if(!dates.length){c.innerHTML=emptyState('Aucune journée travaux passée pour le moment.');return;}
+  const byDate={};(inscs||[]).forEach(i=>{(byDate[i.travaux_id]=byDate[i.travaux_id]||[]).push(i);});
+  if(_travArchTab==='date'){
+    const groups={};
+    dates.forEach(d=>{const k=moisAnLabel(d.date_jour);(groups[k]=groups[k]||[]).push(d);});
+    let html='';
+    Object.entries(groups).forEach(([mois,list])=>{
+      html+=`<div class="arch-month">${mois}</div>`;
+      list.forEach(d=>{
+        const dd=new Date(d.date_jour+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+        const parts=byDate[d.id]||[];
+        html+=`<div class="arch-row" style="flex-direction:column;align-items:stretch;gap:6px">
+          <div style="display:flex;justify-content:space-between"><span class="n">${esc(d.titre||'Journée travaux')}</span><span class="d" style="text-transform:capitalize">${dd}</span></div>
+          <div class="d">${parts.length?parts.map(p=>esc(p.nom)).join(', '):'aucun inscrit'}</div>
+        </div>`;
+      });
+    });
+    c.innerHTML=html;
+  }else{
+    // par bénévole
+    const counts={};
+    (inscs||[]).forEach(i=>{
+      // ne compter que les inscriptions liées à une date passée
+      if(dates.some(d=>d.id===i.travaux_id)){const k=(i.nom||'?').trim();counts[k]=(counts[k]||0)+1;}
+    });
+    const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    if(!sorted.length){c.innerHTML=emptyState('Aucune participation enregistrée.');return;}
+    c.innerHTML=`<p style="color:var(--ink-dim);font-size:.85rem;margin-bottom:14px">${sorted.length} bénévole${sorted.length>1?'s':''} · ${dates.length} journée${dates.length>1?'s':''} passée${dates.length>1?'s':''}</p>`+
+      sorted.map(([nom,n])=>`<div class="arch-pilote"><span class="n">${esc(nom)}</span><span class="count">${n}×</span></div>`).join('');
+  }
 }
 async function openTravauxDateForm(id){
   let d={};if(id){const{data}=await sb.from('travaux_dates').select('*').eq('id',id).single();d=data||{};}
@@ -980,6 +1063,55 @@ async function loadOuverture(){
   const {data}=await sb.from('ouvertures_reservations').select('*').gte('date_jour',isoD(today));
   _ouvResa={};(data||[]).forEach(r=>{_ouvResa[r.date_jour]=r;});
   renderOuvCalendar();
+  // archive admin
+  const wrap=$('#ouvArchiveWrap');
+  if(wrap){
+    if(isAdmin){wrap.style.display='block';loadOuvArchive();}
+    else wrap.style.display='none';
+  }
+}
+let _ouvArchTab='date', _ouvArchData=null;
+function ouvArchTab(tab,btn){
+  _ouvArchTab=tab;
+  $$('#ouvArchTabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderOuvArchive();
+}
+async function loadOuvArchive(){
+  const today=isoD(new Date());
+  const {data}=await sb.from('ouvertures_reservations').select('*').lt('date_jour',today).order('date_jour',{ascending:false});
+  _ouvArchData=data||[];
+  renderOuvArchive();
+}
+function moisAnLabel(iso){
+  const d=new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+}
+function renderOuvArchive(){
+  const c=$('#ouvArchiveContent');if(!c)return;
+  const rows=_ouvArchData||[];
+  if(!rows.length){c.innerHTML=emptyState('Aucune ouverture passée pour le moment.');return;}
+  if(_ouvArchTab==='date'){
+    // grouper par mois/année
+    const groups={};
+    rows.forEach(r=>{const k=moisAnLabel(r.date_jour);(groups[k]=groups[k]||[]).push(r);});
+    let html='';
+    Object.entries(groups).forEach(([mois,list])=>{
+      html+=`<div class="arch-month">${mois} · ${list.length} ouverture${list.length>1?'s':''}</div>`;
+      list.forEach(r=>{
+        const d=new Date(r.date_jour+'T00:00:00');
+        const ds=d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+        html+=`<div class="arch-row"><div><span class="n">${esc(r.nom)}</span>${r.licence?`<span class="d"> · licence ${esc(r.licence)}</span>`:''}</div><span class="d" style="text-transform:capitalize">${ds}</span></div>`;
+      });
+    });
+    c.innerHTML=html;
+  }else{
+    // grouper par pilote (nom)
+    const counts={};
+    rows.forEach(r=>{const k=(r.nom||'?').trim();counts[k]=(counts[k]||0)+1;});
+    const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    c.innerHTML=`<p style="color:var(--ink-dim);font-size:.85rem;margin-bottom:14px">${sorted.length} pilote${sorted.length>1?'s':''} · ${rows.length} ouverture${rows.length>1?'s':''} au total</p>`+
+      sorted.map(([nom,n])=>`<div class="arch-pilote"><span class="n">${esc(nom)}</span><span class="count">${n}×</span></div>`).join('');
+  }
 }
 function ouvChangeMonth(delta){
   _ouvMonth=new Date(_ouvMonth.getFullYear(),_ouvMonth.getMonth()+delta,1);
@@ -1057,7 +1189,8 @@ function ouvShowDay(iso){
     ${fld('Téléphone','respo-tel','','tel','06…')}
     ${fld('Numéro de licence','respo-lic','','text','')}
     <div class="field"><label>🔒 Code du club <span style="color:var(--hot)">*</span></label><input id="respo-code" type="text" placeholder="Code réservé aux licenciés" autocomplete="off"><small style="color:var(--ink-dim);display:block;margin-top:4px">Code communiqué aux licenciés du club</small></div>
-    <button class="btn btn-primary" onclick="submitRespo('${iso}','${esc(horaire)}')">Je m'inscris comme responsable</button>`);
+    <button class="btn btn-primary" onclick="submitRespo('${iso}','${esc(horaire)}')">Je m'inscris comme responsable</button>
+    ${isAdmin?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><p style="color:var(--amber);font-size:.85rem;margin:0 0 10px">👑 Admin : inscrire quelqu'un directement (sans code club)</p><button class="btn btn-ghost btn-sm" onclick="submitRespoAdmin('${iso}','${esc(horaire)}')">Ajouter cette personne (admin)</button></div>`:''}`);
 }
 /* Ajout du créneau d'ouverture au calendrier (Google ou .ics) */
 function ouvAddToCalendar(iso,horaire){
@@ -1131,6 +1264,19 @@ async function delRespo(id){
   if(error)return toast(error.message,true);
   if(!data||!data.length)return toast('Annulation refusée (droits admin manquants)',true);
   closeModal();toast('Réservation annulée');loadOuverture();
+}
+async function submitRespoAdmin(iso,horaire){
+  if(!isAdmin)return;
+  const nom=$('#respo-nom').value.trim();
+  if(!nom)return toast('Indique au moins le nom de la personne',true);
+  const {error}=await sb.from('ouvertures_reservations').insert({
+    date_jour:iso,creneau:horaire,nom,
+    telephone:$('#respo-tel').value.trim()||null,licence:$('#respo-lic').value.trim()||null});
+  if(error){
+    if(error.code==='23505')return toast('Ce jour est déjà pris',true);
+    return toast(error.message,true);
+  }
+  closeModal();toast(`${nom} inscrit·e comme responsable 🔑`);loadOuverture();
 }
 
 /* ---- Accueil ---- */
