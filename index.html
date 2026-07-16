@@ -387,6 +387,33 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   main{padding:0 12px}
   h1.title{font-size:1.7rem}
 }
+/* ===== BARRE DE NAVIGATION DU BAS (mobile) ===== */
+.tabbar{display:none}
+@media(max-width:768px){
+  .tabbar{
+    display:flex;position:fixed;bottom:0;left:0;right:0;z-index:900;
+    background:rgba(16,38,52,.96);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
+    justify-content:space-around;align-items:stretch;
+  }
+  .tabbar button{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+    background:none;border:none;padding:6px 2px;border-radius:12px;
+    color:var(--ink-dim);transition:color .15s,background .15s;position:relative;
+  }
+  .tabbar button .tb-ico{font-size:1.35rem;line-height:1;filter:grayscale(.3) opacity(.85)}
+  .tabbar button .tb-lbl{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.62rem;letter-spacing:.02em}
+  .tabbar button.active{color:var(--accent)}
+  .tabbar button.active .tb-ico{filter:none;transform:translateY(-1px)}
+  .tabbar button.active::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+  .tabbar button:active{background:var(--surface-2)}
+  /* laisser de la place pour la barre en bas */
+  body{padding-bottom:64px}
+  footer{margin-bottom:64px}
+  /* cacher le bouton retour flottant : la tabbar + bouton natif suffisent */
+  #backBtn{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -744,6 +771,25 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="footer-bottom">© <span id="year"></span> MC Les Morfalous · Site du club · <a class="link-discret" href="#" onclick="go('mentions');return false">Mentions légales</a> · <a class="link-discret" href="#" onclick="openAuth();return false">Espace bureau</a></div>
 </footer>
 
+<!-- BARRE DE NAVIGATION DU BAS (mobile) -->
+<nav class="tabbar" id="tabbar">
+  <button data-page="accueil" class="active" onclick="go('accueil')">
+    <span class="tb-ico">🏠</span><span class="tb-lbl">Accueil</span>
+  </button>
+  <button data-page="calendrier" onclick="go('calendrier')">
+    <span class="tb-ico">📅</span><span class="tb-lbl">Agenda</span>
+  </button>
+  <button data-page="ouverture" onclick="go('ouverture')">
+    <span class="tb-ico">🔑</span><span class="tb-lbl">Ouverture</span>
+  </button>
+  <button data-page="travaux" onclick="go('travaux')">
+    <span class="tb-ico">🔧</span><span class="tb-lbl">Travaux</span>
+  </button>
+  <button onclick="openMobileMenu()">
+    <span class="tb-ico">☰</span><span class="tb-lbl">Menu</span>
+  </button>
+</nav>
+
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-head"><h3 id="modalTitle">Titre</h3><button class="modal-close" onclick="closeModal()">×</button></div>
@@ -770,19 +816,42 @@ function fmtTime(d){if(!d)return'';return new Date(d).toLocaleTimeString('fr-FR'
 function emptyState(m){return `<div class="empty"><div class="ico">🏍️</div>${esc(m)}</div>`;}
 
 /* ============ NAV ============ */
-function go(page){
+function go(page,fromPop){
   $$('.page').forEach(p=>{p.classList.remove('active');if(p.id==='page-admin')p.style.display='none';});
   const el=$('#page-'+page);
   if(el){el.classList.add('active');if(page==='admin')el.style.display='block';}
   $$('.nav-links button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   $('#navLinks').classList.remove('open');
+  document.body.classList.remove('menu-open');
+  // barre de navigation du bas (mobile)
+  $$('.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   window.scrollTo(0,0);
   const sh=$('#scrollHint');if(sh)sh.style.opacity='0';
-  // bouton retour : visible partout sauf l'accueil
   const bb=$('#backBtn');if(bb)bb.style.display=(page==='accueil')?'none':'flex';
+  // historique : permet au bouton retour du téléphone de revenir à l'accueil
+  if(!fromPop){
+    if(page==='accueil'){history.replaceState({page:'accueil'},'','#accueil');}
+    else{history.pushState({page},'','#'+page);}
+  }
+  _currentPage=page;
   loaders[page]?.();
 }
+let _currentPage='accueil';
+// Bouton retour du téléphone : revenir à la page précédente au lieu de fermer l'app
+window.addEventListener('popstate',(e)=>{
+  const page=(e.state&&e.state.page)||'accueil';
+  // si une modale est ouverte, la fermer plutôt que changer de page
+  if($('#modalBg').classList.contains('open')){closeModal();history.pushState({page:_currentPage},'','#'+_currentPage);return;}
+  go(page,true);
+});
 function openModal(t,h){$('#modalTitle').textContent=t;$('#modalBody').innerHTML=h;$('#modalBg').classList.add('open');}
+function openMobileMenu(){
+  const nav=$('#navLinks');
+  const willOpen=!nav.classList.contains('open');
+  nav.classList.toggle('open',willOpen);
+  document.body.classList.toggle('menu-open',willOpen);
+  if(willOpen)window.scrollTo({top:0,behavior:'smooth'});
+}
 function closeModal(){$('#modalBg').classList.remove('open');}
 function bureauClick(){
   $('#navLinks').classList.remove('open');
@@ -2888,6 +2957,8 @@ function hideSplash(){
   hideSplash();
   refreshNotifBtn();
   refreshInstallBtns();
+  // état historique initial (pour que le bouton retour du téléphone fonctionne)
+  history.replaceState({page:'accueil'},'','#accueil');
 })();
 /* filet de sécurité : masquer le splash même si une requête traîne */
 setTimeout(()=>$('#splash')?.classList.add('hide'), 4000);
