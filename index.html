@@ -444,6 +444,9 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   .tiles{gap:8px}
   .tile p{display:none} /* sur très petit écran, on garde juste l'icône + titre */
 }
+/* ===== BOUTIQUE (widget HelloAsso) ===== */
+.boutique-frame{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;width:100%}
+.boutique-frame iframe{width:100%;height:750px;min-height:600px;border:0;display:block;background:#fff}
 </style>
 </head>
 <body>
@@ -554,8 +557,8 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile" onclick="go('photos')">
       <span class="ico">📸</span><h3>Photos</h3><p>Albums du club</p>
     </button>
-    <button class="tile" id="tileBoutique" onclick="openExternal('lien_boutique')">
-      <span class="ico">🛒</span><h3>Boutique <span class="ext">↗</span></h3><p>Aux couleurs du club</p>
+    <button class="tile" id="tileBoutique" onclick="go('boutique')">
+      <span class="ico">🛒</span><h3>Boutique</h3><p>Aux couleurs du club</p>
     </button>
     <button class="tile" onclick="go('bureau')">
       <span class="ico">👥</span><h3>Le bureau</h3><p>L'équipe du club</p>
@@ -666,6 +669,14 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <p class="lead" style="margin-bottom:28px">Merci à nos partenaires qui rendent tout ça possible.</p>
   <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openPartenaireForm()">+ Ajouter un partenaire</button>
   <div class="grid grid-4" id="partenairesList"><div class="loading">Chargement…</div></div>
+</section>
+
+<!-- BOUTIQUE -->
+<section class="page" id="page-boutique">
+  <div class="eyebrow">Aux couleurs du club</div>
+  <h1 class="title">Boutique</h1>
+  <p class="lead" style="margin-bottom:20px">Commande tes produits aux couleurs des Morfalous. Paiement sécurisé via HelloAsso.</p>
+  <div id="boutiqueContent"><div class="loading">Chargement…</div></div>
 </section>
 
 <!-- HISTOIRE -->
@@ -996,8 +1007,8 @@ async function handleUpload(inputId,targetId,prefix){
 async function loadConfig(){
   const {data}=await sb.from('config').select('*');
   cfg={}; (data||[]).forEach(r=>cfg[r.cle]=r.valeur);
-  // masquer tuile boutique si pas de lien
-  const tb=$('#tileBoutique'); if(tb&&!cfg.lien_boutique)tb.style.display='none';
+  // tuile boutique toujours visible (widget HelloAsso intégré)
+  const tb=$('#tileBoutique'); if(tb)tb.style.display='';
 }
 async function loadCats(){
   const {data}=await sb.from('categories').select('*').order('ordre');
@@ -1026,8 +1037,41 @@ const loaders={
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
   ouverture:loadOuverture, travaux:loadTravaux, participer:loadParticiper, admin:loadAdmin,
-  mentions:loadMentions,
+  mentions:loadMentions, boutique:loadBoutique,
 };
+async function loadBoutique(){
+  await loadConfig();
+  const c=$('#boutiqueContent');if(!c)return;
+  // URL du widget HelloAsso : on part du lien configuré, sinon fallback sur la boutique connue
+  let base=(cfg.lien_boutique||'').trim();
+  const KNOWN='https://www.helloasso.com/associations/mc-morfalous/boutiques/boutique-du-club-2';
+  if(!base)base=KNOWN;
+  // nettoyer et construire l'URL /widget
+  let widgetUrl=base.replace(/[?#].*$/,'').replace(/\/$/,'');
+  if(/helloasso\.com/i.test(widgetUrl) && !/\/widget$/.test(widgetUrl)){
+    widgetUrl+='/widget';
+  }
+  c.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <a class="btn btn-ghost btn-sm" href="${esc(base)}" target="_blank" rel="noopener">↗ Ouvrir en grand</a>
+    </div>
+    <div class="boutique-frame">
+      <iframe id="haWidget" allowtransparency="true" scrolling="auto" loading="lazy" allow="payment" src="${esc(widgetUrl)}" title="Boutique HelloAsso MC Les Morfalous"></iframe>
+    </div>
+    <p style="color:var(--ink-dim);font-size:.82rem;margin-top:12px;text-align:center">Paiement 100% sécurisé via HelloAsso · Si la boutique ne s'affiche pas, clique sur « Ouvrir en grand ».</p>`;
+  // auto-redimensionnement du widget HelloAsso
+  setupHelloAssoResize();
+}
+let _haResizeSet=false;
+function setupHelloAssoResize(){
+  if(_haResizeSet)return; _haResizeSet=true;
+  window.addEventListener('message',(e)=>{
+    if(!/helloasso\.com/i.test(e.origin||''))return;
+    const h=e.data&&e.data.height;
+    const el=document.getElementById('haWidget');
+    if(el&&h&&h>200){el.style.height=h+'px';}
+  });
+}
 async function loadParticiper(){
   const wrap=$('#ideesRecuesWrap');if(!wrap)return;
   if(!isAdmin){wrap.style.display='none';return;}
