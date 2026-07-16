@@ -414,6 +414,18 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   /* cacher le bouton retour flottant : la tabbar + bouton natif suffisent */
   #backBtn{display:none!important}
 }
+/* ===== BANDE D'ACTUALITÉS DÉFILANTE (ticker) ===== */
+.news-ticker{display:flex;align-items:stretch;background:linear-gradient(90deg,#102634,#17415a);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.ticker-badge{display:flex;align-items:center;background:var(--hot);color:#fff;font-family:var(--font-disp);font-weight:800;text-transform:uppercase;letter-spacing:.03em;font-size:.82rem;padding:0 14px;white-space:nowrap;flex-shrink:0}
+.ticker-viewport{flex:1;overflow:hidden;position:relative;display:flex;align-items:center}
+.ticker-track{display:inline-flex;align-items:center;gap:0;white-space:nowrap;will-change:transform;animation:tickerScroll 40s linear infinite}
+.news-ticker:hover .ticker-track{animation-play-state:paused}
+.ticker-item{display:inline-flex;align-items:center;gap:8px;padding:9px 0;color:var(--ink);font-size:.9rem}
+.ticker-item .ti-ico{font-size:1rem}
+.ticker-item .ti-tag{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.72rem;color:var(--accent);letter-spacing:.02em}
+.ticker-sep{color:var(--line);margin:0 22px;font-size:1.1rem}
+@keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none;white-space:normal;flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -460,6 +472,10 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 
 <!-- ACCUEIL -->
 <section class="page active" id="page-accueil">
+  <div class="news-ticker" id="newsTicker" style="display:none">
+    <span class="ticker-badge">🔴 INFOS</span>
+    <div class="ticker-viewport"><div class="ticker-track" id="tickerTrack"></div></div>
+  </div>
   <div class="cover" id="homeCover">
     <div class="cover-overlay"></div>
     <button class="cover-edit admin-only" onclick="openCoverForm()" title="Changer la photo de couverture">📷 Couverture</button>
@@ -1424,6 +1440,33 @@ async function loadHome(){
   loadPartnersStrip();
   loadCover();
   loadCountdown();
+  buildTicker(evs,acts);
+}
+function buildTicker(evs,acts){
+  const track=$('#tickerTrack'), ticker=$('#newsTicker');
+  if(!track||!ticker)return;
+  const items=[];
+  // prochains RDV (événements + travaux)
+  (evs||[]).slice(0,4).forEach(e=>{
+    const dm=dayMonth(e.date_debut);
+    const ico=e._isTravaux?'🔧':'📅';
+    const tag=e._isTravaux?'Travaux':'À venir';
+    items.push({ico,tag,txt:`${e.titre}${e.lieu?' · '+e.lieu:''} — ${dm.d} ${dm.m}`});
+  });
+  // dernières actus publiées
+  (acts||[]).slice(0,3).forEach(a=>{
+    const catIco={bureau:'📋',travaux:'🔧',ouverture:'🔑'}[a.categorie]||'📰';
+    items.push({ico:catIco,tag:'Actu',txt:a.titre});
+  });
+  if(!items.length){ticker.style.display='none';return;}
+  // construire le HTML d'une séquence
+  const seq=items.map(it=>`<span class="ticker-item"><span class="ti-ico">${it.ico}</span><span class="ti-tag">${esc(it.tag)}</span><span>${esc(it.txt)}</span></span><span class="ticker-sep">◆</span>`).join('');
+  // doubler pour un défilement continu sans coupure
+  track.innerHTML=seq+seq;
+  // vitesse selon le nombre d'items (plus il y en a, plus c'est long)
+  const dur=Math.max(20,items.length*7);
+  track.style.animationDuration=dur+'s';
+  ticker.style.display='flex';
 }
 /* Compte à rebours vers la prochaine édition (date réglée en admin, config) */
 let _cdTimer=null, _cdTarget=null;
