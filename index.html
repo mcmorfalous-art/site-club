@@ -2186,11 +2186,18 @@ async function loadLicence(){
 }
 /* ============ RÉSULTATS (courses → catégories → générateur) ============ */
 async function loadResultats(){
-  const {data:courses}=await sb.from('resultats_courses').select('*').order('date_course',{ascending:false});
+ try{
+  const {data:courses,error:errC}=await sb.from('resultats_courses').select('*').order('date_course',{ascending:false});
+  if(errC){
+    console.error('resultats_courses:',errC);
+    $('#resultatsList').innerHTML=emptyState('Erreur de chargement : '+errC.message);
+    return;
+  }
   if(!courses?.length){$('#resultatsList').innerHTML=emptyState('Aucun résultat publié.');return;}
   let html='';
   for(const co of courses){
-    const {data:cats}=await sb.from('resultats_categories').select('*').eq('course_id',co.id).order('ordre');
+    const {data:cats,error:errCat}=await sb.from('resultats_categories').select('*').eq('course_id',co.id).order('ordre');
+    if(errCat)console.warn('resultats_categories:',errCat.message);
     html+=`<div class="card" style="margin-bottom:18px"><div class="card-body">
       <span class="card-date">${co.date_course?fmtDate(co.date_course):''}${co.lieu?' · '+esc(co.lieu):''}</span>
       <h3>${esc(co.evenement)}${co.saison?' '+esc(co.saison):''}</h3>
@@ -2224,6 +2231,10 @@ async function loadResultats(){
     if(isAdmin){wrap.style.display='block';loadResAdmin();}
     else wrap.style.display='none';
   }
+ }catch(e){
+  console.error('loadResultats:',e);
+  $('#resultatsList').innerHTML=emptyState('Erreur lors du chargement des résultats. Détail dans la console (F12).');
+ }
 }
 let _resAdminTab='categories';
 function resAdminTab(tab,btn){
