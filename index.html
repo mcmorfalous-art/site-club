@@ -953,6 +953,9 @@ function refreshBureauBtn(){
 function openExternal(key){
   const url=cfg[key];
   if(!url){toast('Lien non configuré pour le moment',true);return;}
+  // Si l'app est installée (mode standalone), on reste dans l'app :
+  // navigation dans la même fenêtre → le bouton retour du téléphone ramène au site club.
+  if(isStandalone()){window.location.href=url;return;}
   window.open(url,'_blank','noopener');
 }
 
