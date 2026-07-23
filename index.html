@@ -184,6 +184,8 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .ph-vid{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--accent)}
 .ph-del{position:absolute;top:4px;right:4px;background:rgba(232,71,46,.92);color:#fff;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:.85rem;line-height:1;display:flex;align-items:center;justify-content:center}
 .ph-del:hover{background:var(--hot)}
+.ph-cov{position:absolute;top:4px;left:4px;background:rgba(10,26,36,.75);color:var(--amber);border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:.8rem;line-height:1;display:flex;align-items:center;justify-content:center}
+.ph-cov:hover{background:var(--amber);color:#0a1a24}
 /* Gestion des partenaires en tableau */
 .part-year-filter{display:flex;gap:6px;align-items:center;margin-left:auto}
 .part-year-filter select{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;font-family:var(--font-disp);font-weight:700}
@@ -2620,6 +2622,7 @@ async function loadAlbums(){
         <div class="row-actions" style="margin-top:auto;padding-top:10px">
           <button class="btn btn-ghost btn-sm" onclick="openAlbum('${al.id}')">Ouvrir</button>
           <button class="btn btn-ghost btn-sm admin-only" onclick="openPhotoManage('${al.id}')">+ médias</button>
+          <button class="btn btn-ghost btn-sm admin-only" onclick="openAlbumForm('${al.id}')" title="Modifier l'album">✎</button>
           <button class="btn btn-danger btn-sm admin-only" onclick="delRow('albums','${al.id}','photos')">✕</button>
         </div>
       </div>
@@ -2707,8 +2710,14 @@ async function refreshPhotoList(albumId){
          <div class="ph-thumb">
            ${/youtu/.test(p.image_url)?`<div class="ph-vid">▶</div>`:`<img src="${esc(p.image_url)}" alt="" loading="lazy">`}
            <button class="ph-del" onclick="delPhoto('${p.id}','${albumId}')" title="Supprimer">✕</button>
+           ${!/youtu/.test(p.image_url)?`<button class="ph-cov" onclick="setAlbumCover('${albumId}','${esc(p.image_url)}')" title="Définir comme couverture">★</button>`:''}
          </div>`).join('')}</div>`
     : '<p style="color:var(--ink-dim);font-size:.85rem">Aucun média pour l\'instant.</p>';
+}
+async function setAlbumCover(albumId,url){
+  const {error}=await sb.from('albums').update({couverture_url:url}).eq('id',albumId);
+  if(error)return toast(error.message,true);
+  toast('Couverture mise à jour ★');loadAlbums();
 }
 async function addPhoto(albumId){
   const url=$('#ph-url')?.value.trim();
@@ -3041,21 +3050,23 @@ async function saveCat(id,courseId){
 /* Album (photo ou vidéo) */
 async function openAlbumForm(id){
   let a={};if(id){const{data}=await sb.from('albums').select('*').eq('id',id).single();a=data||{};}
-  openModal('Nouvel album',`
+  const isEdit=!!id;
+  openModal(isEdit?'Modifier l\'album':'Nouvel album',`
     ${fld('Titre','al-titre',a.titre)}
     ${ar('Description','al-desc',a.description)}
     <div class="field"><label>Type</label><select id="al-type"><option value="photo" ${a.type!=='video'?'selected':''}>Photos</option><option value="video" ${a.type==='video'?'selected':''}>Vidéos</option></select></div>
     ${fileField('Couverture (optionnel)','al-covfile','al-cov','image/*','covers',a.couverture_url)}
+    ${isEdit&&a.couverture_url?`<button class="btn btn-ghost btn-sm" style="margin:-6px 0 14px" onclick="document.getElementById('al-cov').value='';toast('Couverture retirée — pense à enregistrer')">🗑 Retirer la couverture</button>`:''}
     ${fld('Date','al-date',a.date_album,'date')}
-    <p style="color:var(--ink-dim);font-size:.85rem;margin:12px 0">Après création, clique « + médias » sur l'album pour ajouter photos ou vidéos.</p>
-    <button class="btn btn-primary" onclick="saveAlbum('${id||''}')">Créer</button>`);
+    ${isEdit?`<p style="color:var(--ink-dim);font-size:.85rem;margin:12px 0">Pour gérer les photos, ferme cette fenêtre et clique « + médias ».</p>`:`<p style="color:var(--ink-dim);font-size:.85rem;margin:12px 0">Après création, clique « + médias » sur l'album pour ajouter photos ou vidéos.</p>`}
+    <button class="btn btn-primary" onclick="saveAlbum('${id||''}')">${isEdit?'Enregistrer les modifications':'Créer'}</button>`);
 }
 async function saveAlbum(id){
   const p={titre:$('#al-titre').value.trim(),description:$('#al-desc').value.trim()||null,type:$('#al-type').value,couverture_url:$('#al-cov').value.trim()||null,date_album:$('#al-date').value||null};
   if(!p.titre)return toast('Titre requis',true);
   const {error}=id?await sb.from('albums').update(p).eq('id',id):await sb.from('albums').insert(p);
   if(error)return toast(error.message,true);
-  closeModal();toast('Album créé');mediaType=p.type;
+  closeModal();toast(id?'Album modifié ✓':'Album créé');mediaType=p.type;
   $$('#subPhoto,#subVideo').forEach(b=>b.classList.remove('active'));
   $(p.type==='video'?'#subVideo':'#subPhoto').classList.add('active');
   loadAlbums();
