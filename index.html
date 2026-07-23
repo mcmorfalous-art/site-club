@@ -175,6 +175,12 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .tag.ag,.tag.repas{background:rgba(92,198,232,.15);color:var(--accent)}
 .tag.course{background:rgba(232,71,46,.15);color:var(--hot)}
 .pdf-badge{display:inline-flex;align-items:center;gap:5px;color:var(--hot);font-family:var(--font-disp);font-weight:700;font-size:.8rem;text-transform:uppercase}
+.pdf-frame{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:100%}
+.pdf-frame iframe{width:100%;height:70vh;min-height:420px;border:0;display:block}
+/* modale plus large quand elle affiche un PDF */
+.modal:has(.pdf-frame){max-width:900px}
+.modal.modal-wide{max-width:900px}
+@media(max-width:600px){.pdf-frame iframe{height:60vh;min-height:340px}}
 .cal-item{display:flex;gap:18px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:12px;border-left:3px solid var(--accent);align-items:center;flex-wrap:wrap}
 .cal-date{flex-shrink:0;text-align:center;font-family:var(--font-disp);background:var(--surface-2);border-radius:5px;padding:10px 14px;min-width:74px}
 .cal-date .d{font-weight:900;font-size:1.9rem;line-height:1;color:var(--ink)}
@@ -938,7 +944,10 @@ document.addEventListener('click',(e)=>{
   const dd=$('#navClub');
   if(dd&&dd.classList.contains('open')&&!dd.contains(e.target))dd.classList.remove('open');
 });
-function closeModal(){$('#modalBg').classList.remove('open');}
+function closeModal(){
+  $('#modalBg').classList.remove('open');
+  document.querySelector('#modalBg .modal')?.classList.remove('modal-wide');
+}
 function bureauClick(){
   $('#navLinks').classList.remove('open');
   if(isAdmin){go('admin');}
@@ -1864,7 +1873,21 @@ async function openActu(id){
     ${a.image_url?`<img src="${esc(a.image_url)}" style="border-radius:6px;margin-bottom:16px" alt="">`:''}
     <p style="color:var(--accent);font-family:var(--font-disp);text-transform:uppercase;font-size:.85rem;margin-bottom:12px">${fmtDate(a.date_publi)}</p>
     <div style="white-space:pre-wrap;line-height:1.7">${esc(a.contenu||a.resume||'')}</div>
-    ${a.pdf_url?`<a class="btn btn-primary btn-sm" style="margin-top:18px" href="${esc(a.pdf_url)}" target="_blank" rel="noopener">📄 Ouvrir le PDF</a>`:''}`);
+    ${a.pdf_url?`<button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="openPdf('${esc(a.pdf_url)}','${esc(a.titre).replace(/'/g,"\\'")}')">📄 Ouvrir le PDF</button>`:''}`);
+}
+/* Visionneuse PDF en popup */
+function openPdf(url,titre){
+  const isMobile=window.innerWidth<=768;
+  openModal(titre||'Document',`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <a class="btn btn-ghost btn-sm" href="${esc(url)}" target="_blank" rel="noopener">↗ Ouvrir en grand</a>
+      <a class="btn btn-ghost btn-sm" href="${esc(url)}" download>⬇ Télécharger</a>
+    </div>
+    <div class="pdf-frame">
+      <iframe src="${esc(url)}#view=FitH" title="${esc(titre||'Document PDF')}" loading="lazy"></iframe>
+    </div>
+    ${isMobile?`<p style="color:var(--ink-dim);font-size:.82rem;margin-top:10px;text-align:center">Sur mobile, l'affichage peut être limité : utilise « Ouvrir en grand » si besoin.</p>`:''}`);
+  document.querySelector('#modalBg .modal')?.classList.add('modal-wide');
 }
 
 /* ---- Bureau ---- */
