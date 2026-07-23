@@ -2236,6 +2236,8 @@ async function loadResultats(){
   $('#resultatsList').innerHTML=emptyState('Erreur lors du chargement des résultats. Détail dans la console (F12).');
  }
 }
+/* 1 -> "er", 2+ -> "e" */
+function ordinal(n){return n==1?'er':'e';}
 let _resAdminTab='categories';
 function resAdminTab(tab,btn){
   _resAdminTab=tab;
