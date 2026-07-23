@@ -178,17 +178,22 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 /* Gestion des partenaires en tableau */
 .part-year-filter{display:flex;gap:6px;align-items:center;margin-left:auto}
 .part-year-filter select{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;font-family:var(--font-disp);font-weight:700}
-.part-table{width:100%;border-collapse:collapse;font-size:.9rem}
+.part-table{width:100%;border-collapse:collapse;font-size:.9rem;table-layout:auto}
 .part-table th{text-align:left;font-family:var(--font-disp);text-transform:uppercase;font-size:.78rem;color:var(--ink-dim);padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
 .part-table td{padding:6px;border-bottom:1px solid var(--line);vertical-align:middle}
-.part-table input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 9px;font-size:.88rem}
+.part-table input[type=text]{width:100%;min-width:130px;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 9px;font-size:.88rem}
+.part-table .pt-nom{min-width:170px}
+.part-table .pt-lien{min-width:190px}
+.part-table .pt-ordre{min-width:0!important;width:60px}
 .part-table input[type=text]:focus{border-color:var(--accent);outline:none}
 .part-table .pt-logo{width:64px}
 .part-table .pt-logo img{height:34px;max-width:60px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;display:block}
 .part-table .pt-check{width:36px;text-align:center}
 .part-table .pt-act{width:80px;white-space:nowrap;text-align:right}
-.part-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
-.part-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.part-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;width:100%}
+#partTableWrap .section-title,#partTableContent{width:100%;display:block}
+.part-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
+.part-table{min-width:680px}
 @media(max-width:700px){.part-table{min-width:620px}}
 .pdf-frame{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:100%}
 .pdf-frame iframe{width:100%;height:70vh;min-height:420px;border:0;display:block}
@@ -257,6 +262,9 @@ body.is-admin #ouvArchiveWrap,body.is-admin #travArchiveWrap,
 body.is-admin #calInscriptionsWrap,body.is-admin #resAdminWrap,
 body.is-admin #adminsWrap,body.is-admin #ideesRecuesWrap,
 body.is-admin #pushAdminWrap{display:block!important;width:100%}
+/* le tableau partenaires s'affiche uniquement quand la classe est présente */
+#partTableWrap{display:none!important}
+body.is-admin #partTableWrap.show{display:block!important;width:100%}
 .arch-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px;width:100%;clear:both}
 #ouvArchiveWrap,#travArchiveWrap{display:block;width:100%}
 #ouvArchiveWrap .section-title,#travArchiveWrap .section-title,
@@ -719,7 +727,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <div class="part-year-filter" id="partYearFilter"></div>
   </div>
   <div class="grid grid-4" id="partenairesList"><div class="loading">Chargement…</div></div>
-  <div class="admin-only" id="partTableWrap" style="margin-top:32px;display:none">
+  <div class="admin-only" id="partTableWrap" style="margin-top:32px">
     <h2 class="section-title" style="margin-bottom:8px">📋 Gestion des partenaires</h2>
     <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Ajoute, modifie et gère tes partenaires par saison. Coche ceux qui renouvellent pour les reporter sur l'année suivante.</p>
     <div id="partTableContent"><div class="loading">Chargement…</div></div>
@@ -1974,13 +1982,13 @@ async function loadPartenaires(){
       </div>
     </div>`).join(''):emptyState(`Aucun partenaire pour ${_partYear}.`);
   loadPartnersStrip();
-  if($('#partTableWrap')?.style.display==='block')renderPartTable();
+  if($('#partTableWrap')?.classList.contains('show'))renderPartTable();
 }
 function changePartYear(y){_partYear=parseInt(y);loadPartenaires();}
 function togglePartTable(){
   const w=$('#partTableWrap');if(!w)return;
-  const show=w.style.display!=='block';
-  w.style.display=show?'block':'none';
+  const show=!w.classList.contains('show');
+  w.classList.toggle('show',show);
   if(show)renderPartTable();
 }
 async function renderPartTable(){
