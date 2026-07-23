@@ -186,6 +186,11 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .ph-del:hover{background:var(--hot)}
 .ph-cov{position:absolute;top:4px;left:4px;background:rgba(10,26,36,.75);color:var(--amber);border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:.8rem;line-height:1;display:flex;align-items:center;justify-content:center}
 .ph-cov:hover{background:var(--amber);color:#0a1a24}
+/* Sélecteur du point de focus des images */
+.focus-picker{display:flex;gap:6px;flex-wrap:wrap}
+.focus-picker button{flex:1;min-width:80px;background:var(--bg);border:1px solid var(--line);color:var(--ink-dim);border-radius:8px;padding:9px 10px;font-family:var(--font-disp);font-weight:700;font-size:.82rem;text-transform:uppercase;cursor:pointer;transition:all .12s}
+.focus-picker button:hover{border-color:var(--accent);color:var(--ink)}
+.focus-picker button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
 /* Gestion des partenaires en tableau */
 .part-year-filter{display:flex;gap:6px;align-items:center;margin-left:auto}
 .part-year-filter select{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;font-family:var(--font-disp);font-weight:700}
@@ -1695,10 +1700,21 @@ async function clearCountdown(){
 async function loadCover(){
   const cover=$('#homeCover');if(!cover)return;
   const {data}=await sb.from('config').select('valeur').eq('cle','cover_photo').maybeSingle();
-  if(data?.valeur){cover.style.backgroundImage=`url("${data.valeur}")`;}
-  else{cover.style.backgroundImage='';}
+  const {data:pos}=await sb.from('config').select('valeur').eq('cle','cover_photo_pos').maybeSingle();
+  if(data?.valeur){
+    cover.style.backgroundImage=`url("${data.valeur}")`;
+    cover.style.backgroundPosition=`center ${pos?.valeur||'center'}`;
+  }
+  else{cover.style.backgroundImage='';cover.style.backgroundPosition='';}
+}
+async function saveCoverPos(){
+  const v=$('#cover-pos')?.value||'center';
+  const {error}=await sb.from('config').upsert({cle:'cover_photo_pos',valeur:v},{onConflict:'cle'});
+  if(error)return toast(error.message,true);
+  toast('Cadrage enregistré ✓');loadCover();
 }
 async function openCoverForm(){
+  const {data:cp}=await sb.from('config').select('valeur').eq('cle','cover_photo_pos').maybeSingle();
   openModal('Personnaliser l\'accueil',`
     <h3 class="section-title" style="margin-bottom:10px">📷 Photo de couverture</h3>
     <p style="color:var(--ink-dim);margin-bottom:14px">Une belle photo panoramique (paysage) pour l'accueil. Compressée automatiquement.</p>
@@ -1706,6 +1722,10 @@ async function openCoverForm(){
     <button type="button" class="btn btn-primary" onclick="document.getElementById('cover-file').click()">Choisir une photo</button>
     <div id="cover-preview" style="margin-top:14px"></div>
     <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="removeCover()">Retirer la photo (fond par défaut)</button>
+    <div style="margin-top:16px">
+      ${focusField('Cadrage de la bannière','cover-pos',cp?.valeur||'center')}
+      <button class="btn btn-ghost btn-sm" onclick="saveCoverPos()">Appliquer le cadrage</button>
+    </div>
     <hr style="border:none;border-top:1px solid var(--line);margin:22px 0">
     <h3 class="section-title" style="margin-bottom:10px">🐺 Logo du club</h3>
     <p style="color:var(--ink-dim);margin-bottom:14px">Changer le logo le met à jour <strong>partout</strong> : couverture, écran d'accueil et images de résultats. Idéal : image carrée, fond transparent.</p>
@@ -1873,7 +1893,7 @@ function actuCard(a){
   const catLabels={actualite:'Actu',bureau:'Bureau',travaux:'Travaux',ouverture:'Ouverture'};
   const cat=a.categorie&&catLabels[a.categorie]?a.categorie:null;
   return `<div class="card">
-    ${a.image_url?`<img class="card-img" src="${esc(a.image_url)}" alt="" loading="lazy">`:''}
+    ${a.image_url?`<img class="card-img" src="${esc(a.image_url)}" alt="" loading="lazy" style="object-position:center ${esc(a.image_pos||'center')}">`:''}
     <div class="card-body">
       ${cat?`<span class="actu-cat-tag">${catLabels[cat]}</span>`:''}
       <span class="card-date">${fmtDate(a.date_publi)}</span>
@@ -2614,7 +2634,7 @@ async function loadAlbums(){
   const {data}=await sb.from('albums').select('*').eq('type',mediaType).order('date_album',{ascending:false});
   $('#albumsList').innerHTML=(data?.length)?data.map(al=>`
     <div class="card">
-      ${al.couverture_url?`<img class="card-img" src="${esc(al.couverture_url)}" alt="" loading="lazy">`:`<div class="card-img"></div>`}
+      ${al.couverture_url?`<img class="card-img" src="${esc(al.couverture_url)}" alt="" loading="lazy" style="object-position:center ${esc(al.couverture_pos||'center')}">`:`<div class="card-img"></div>`}
       <div class="card-body">
         <span class="card-date">${al.date_album?fmtDate(al.date_album):''}</span>
         <h3>${esc(al.titre)}</h3>
@@ -2817,6 +2837,23 @@ function fileField(l,fileId,urlId,accept,prefix,cur=''){
     ${cur?`<small style="color:var(--ink-dim);display:block;margin-top:6px">Fichier actuel conservé si tu ne changes rien</small>`:''}
   </div>`;
 }
+/* Sélecteur du point de focus d'une image (recadrage simple) */
+function focusField(label,id,cur='center'){
+  const opts=[['top','⬆️ Haut'],['center','⏺️ Centre'],['bottom','⬇️ Bas']];
+  return `<div class="field">
+    <label>${label}</label>
+    <div class="focus-picker" id="${id}-picker">
+      ${opts.map(([v,t])=>`<button type="button" class="${(cur||'center')===v?'active':''}" data-val="${v}" onclick="pickFocus('${id}','${v}',this)">${t}</button>`).join('')}
+    </div>
+    <input id="${id}" type="hidden" value="${esc(cur||'center')}">
+    <small style="color:var(--ink-dim);display:block;margin-top:6px">Quelle partie de l'image rester visible si elle est rognée</small>
+  </div>`;
+}
+function pickFocus(id,val,btn){
+  const inp=$('#'+id);if(inp)inp.value=val;
+  $$('#'+id+'-picker button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
 
 /* Champs prédéfinis disponibles pour le formulaire d'inscription */
 const CHAMPS_PREDEF=[
@@ -2928,13 +2965,14 @@ async function openActuForm(id){
     ${ar('Résumé (court)','ac-resume',a.resume,"Une phrase d'accroche")}
     ${ar('Contenu','ac-contenu',a.contenu)}
     ${fileField('Image (optionnel)','ac-imgfile','ac-img','image/*','articles',a.image_url)}
+    ${focusField('Cadrage de l\'image','ac-imgpos',a.image_pos)}
     ${fileField('PDF joint (compte-rendu)','ac-pdffile','ac-pdf','application/pdf','pdf',a.pdf_url)}
     <div class="field"><label>Catégorie</label><select id="ac-cat">${['actualite','bureau','travaux','ouverture'].map(c=>`<option ${a.categorie===c?'selected':''}>${c}</option>`).join('')}</select></div>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input type="checkbox" id="ac-pub" ${a.publie!==false?'checked':''} style="width:auto"> Publié</label>
     <button class="btn btn-primary" onclick="saveActu('${id||''}')">Enregistrer</button>`);
 }
 async function saveActu(id){
-  const p={titre:$('#ac-titre').value.trim(),resume:$('#ac-resume').value.trim()||null,contenu:$('#ac-contenu').value.trim()||null,image_url:$('#ac-img').value.trim()||null,pdf_url:$('#ac-pdf').value.trim()||null,categorie:$('#ac-cat').value,publie:$('#ac-pub').checked};
+  const p={titre:$('#ac-titre').value.trim(),resume:$('#ac-resume').value.trim()||null,contenu:$('#ac-contenu').value.trim()||null,image_url:$('#ac-img').value.trim()||null,image_pos:$('#ac-imgpos')?.value||'center',pdf_url:$('#ac-pdf').value.trim()||null,categorie:$('#ac-cat').value,publie:$('#ac-pub').checked};
   if(!p.titre)return toast('Titre requis',true);
   const {error}=id?await sb.from('actualites').update(p).eq('id',id):await sb.from('actualites').insert(p);
   if(error)return toast(error.message,true);
@@ -3057,12 +3095,13 @@ async function openAlbumForm(id){
     <div class="field"><label>Type</label><select id="al-type"><option value="photo" ${a.type!=='video'?'selected':''}>Photos</option><option value="video" ${a.type==='video'?'selected':''}>Vidéos</option></select></div>
     ${fileField('Couverture (optionnel)','al-covfile','al-cov','image/*','covers',a.couverture_url)}
     ${isEdit&&a.couverture_url?`<button class="btn btn-ghost btn-sm" style="margin:-6px 0 14px" onclick="document.getElementById('al-cov').value='';toast('Couverture retirée — pense à enregistrer')">🗑 Retirer la couverture</button>`:''}
+    ${focusField('Cadrage de la couverture','al-covpos',a.couverture_pos)}
     ${fld('Date','al-date',a.date_album,'date')}
     ${isEdit?`<p style="color:var(--ink-dim);font-size:.85rem;margin:12px 0">Pour gérer les photos, ferme cette fenêtre et clique « + médias ».</p>`:`<p style="color:var(--ink-dim);font-size:.85rem;margin:12px 0">Après création, clique « + médias » sur l'album pour ajouter photos ou vidéos.</p>`}
     <button class="btn btn-primary" onclick="saveAlbum('${id||''}')">${isEdit?'Enregistrer les modifications':'Créer'}</button>`);
 }
 async function saveAlbum(id){
-  const p={titre:$('#al-titre').value.trim(),description:$('#al-desc').value.trim()||null,type:$('#al-type').value,couverture_url:$('#al-cov').value.trim()||null,date_album:$('#al-date').value||null};
+  const p={titre:$('#al-titre').value.trim(),description:$('#al-desc').value.trim()||null,type:$('#al-type').value,couverture_url:$('#al-cov').value.trim()||null,couverture_pos:$('#al-covpos')?.value||'center',date_album:$('#al-date').value||null};
   if(!p.titre)return toast('Titre requis',true);
   const {error}=id?await sb.from('albums').update(p).eq('id',id):await sb.from('albums').insert(p);
   if(error)return toast(error.message,true);
