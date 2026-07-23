@@ -175,6 +175,21 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .tag.ag,.tag.repas{background:rgba(92,198,232,.15);color:var(--accent)}
 .tag.course{background:rgba(232,71,46,.15);color:var(--hot)}
 .pdf-badge{display:inline-flex;align-items:center;gap:5px;color:var(--hot);font-family:var(--font-disp);font-weight:700;font-size:.8rem;text-transform:uppercase}
+/* Gestion des partenaires en tableau */
+.part-year-filter{display:flex;gap:6px;align-items:center;margin-left:auto}
+.part-year-filter select{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 12px;font-family:var(--font-disp);font-weight:700}
+.part-table{width:100%;border-collapse:collapse;font-size:.9rem}
+.part-table th{text-align:left;font-family:var(--font-disp);text-transform:uppercase;font-size:.78rem;color:var(--ink-dim);padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.part-table td{padding:6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.part-table input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 9px;font-size:.88rem}
+.part-table input[type=text]:focus{border-color:var(--accent);outline:none}
+.part-table .pt-logo{width:64px}
+.part-table .pt-logo img{height:34px;max-width:60px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;display:block}
+.part-table .pt-check{width:36px;text-align:center}
+.part-table .pt-act{width:80px;white-space:nowrap;text-align:right}
+.part-bulk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.part-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:700px){.part-table{min-width:620px}}
 .pdf-frame{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:100%}
 .pdf-frame iframe{width:100%;height:70vh;min-height:420px;border:0;display:block}
 /* modale plus large quand elle affiche un PDF */
@@ -698,8 +713,17 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <div class="eyebrow">Ils nous soutiennent</div>
   <h1 class="title">Partenaires</h1>
   <p class="lead" style="margin-bottom:28px">Merci à nos partenaires qui rendent tout ça possible.</p>
-  <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:20px" onclick="openPartenaireForm()">+ Ajouter un partenaire</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px">
+    <button class="btn btn-primary admin-only btn-sm" onclick="openPartenaireForm()">+ Ajouter un partenaire</button>
+    <button class="btn btn-ghost admin-only btn-sm" onclick="togglePartTable()">📋 Gestion en tableau</button>
+    <div class="part-year-filter" id="partYearFilter"></div>
+  </div>
   <div class="grid grid-4" id="partenairesList"><div class="loading">Chargement…</div></div>
+  <div class="admin-only" id="partTableWrap" style="margin-top:32px;display:none">
+    <h2 class="section-title" style="margin-bottom:8px">📋 Gestion des partenaires</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Ajoute, modifie et gère tes partenaires par saison. Coche ceux qui renouvellent pour les reporter sur l'année suivante.</p>
+    <div id="partTableContent"><div class="loading">Chargement…</div></div>
+  </div>
 </section>
 
 <!-- BOUTIQUE -->
@@ -1074,7 +1098,7 @@ async function loadPilotes(){
 async function loadPartnersStrip(){
   const strip=$('#partnersStrip'), track=$('#psTrack');
   if(!strip||!track)return;
-  const {data,error}=await sb.from('partenaires').select('*');
+  const {data,error}=await sb.from('partenaires').select('*').eq('annee',new Date().getFullYear());
   if(error){console.warn('partenaires strip:',error.message);strip.style.display='none';return;}
   const logos=(data||[]).filter(p=>p.logo_url).sort((a,b)=>(a.ordre||0)-(b.ordre||0));
   if(!logos.length){strip.style.display='none';return;}
@@ -1924,9 +1948,23 @@ async function loadAdminsList(){
 }
 
 /* ---- Partenaires ---- */
+let _partYear=new Date().getFullYear();
+let _partCache=[];
 async function loadPartenaires(){
-  const {data}=await sb.from('partenaires').select('*').order('ordre');
-  $('#partenairesList').innerHTML=(data?.length)?data.map(p=>`
+  // années disponibles pour le filtre
+  const {data:all}=await sb.from('partenaires').select('annee');
+  const years=[...new Set((all||[]).map(p=>p.annee).filter(Boolean))].sort((a,b)=>b-a);
+  const cur=new Date().getFullYear();
+  if(!years.includes(cur))years.unshift(cur);
+  if(!years.includes(_partYear))_partYear=years[0]||cur;
+  const fil=$('#partYearFilter');
+  if(fil){
+    fil.innerHTML=`<label style="color:var(--ink-dim);font-size:.85rem">Saison</label>
+      <select onchange="changePartYear(this.value)">${years.map(y=>`<option value="${y}" ${y===_partYear?'selected':''}>${y}</option>`).join('')}</select>`;
+  }
+  const {data}=await sb.from('partenaires').select('*').eq('annee',_partYear).order('ordre');
+  _partCache=data||[];
+  $('#partenairesList').innerHTML=(_partCache.length)?_partCache.map(p=>`
     <div style="position:relative">
       <a class="partner" href="${esc(p.lien||'#')}" ${p.lien?'target="_blank" rel="noopener"':''}>
         ${p.logo_url?`<img src="${esc(p.logo_url)}" alt="${esc(p.nom)}">`:`<span style="font-family:var(--font-disp);text-transform:uppercase">${esc(p.nom)}</span>`}
@@ -1934,8 +1972,146 @@ async function loadPartenaires(){
       <div class="row-actions admin-only" style="position:absolute;top:6px;right:6px">
         <button class="btn btn-danger btn-sm" onclick="delRow('partenaires','${p.id}','partenaires')">✕</button>
       </div>
-    </div>`).join(''):emptyState('Partenaires à venir.');
+    </div>`).join(''):emptyState(`Aucun partenaire pour ${_partYear}.`);
   loadPartnersStrip();
+  if($('#partTableWrap')?.style.display==='block')renderPartTable();
+}
+function changePartYear(y){_partYear=parseInt(y);loadPartenaires();}
+function togglePartTable(){
+  const w=$('#partTableWrap');if(!w)return;
+  const show=w.style.display!=='block';
+  w.style.display=show?'block':'none';
+  if(show)renderPartTable();
+}
+async function renderPartTable(){
+  const c=$('#partTableContent');if(!c)return;
+  const {data}=await sb.from('partenaires').select('*').eq('annee',_partYear).order('ordre');
+  const list=data||[];
+  const next=_partYear+1;
+  c.innerHTML=`
+    <div class="part-bulk">
+      <button class="btn btn-primary btn-sm" onclick="addPartRows(5)">+ 5 lignes vides</button>
+      <button class="btn btn-ghost btn-sm" onclick="partCheckAll(true)">Tout cocher</button>
+      <button class="btn btn-ghost btn-sm" onclick="partCheckAll(false)">Tout décocher</button>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="duplicatePartners(${next})">📅 Reporter les cochés vers ${next}</button>
+    </div>
+    <div class="part-table-scroll">
+    <table class="part-table">
+      <thead><tr>
+        <th class="pt-check"><input type="checkbox" onchange="partCheckAll(this.checked)"></th>
+        <th class="pt-logo">Logo</th>
+        <th>Nom</th>
+        <th>Site web</th>
+        <th style="width:70px">Ordre</th>
+        <th class="pt-act"></th>
+      </tr></thead>
+      <tbody id="partTbody">
+        ${list.map(p=>partRow(p)).join('')}
+      </tbody>
+    </table>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn btn-primary" onclick="savePartTable()">💾 Enregistrer les modifications</button>
+      <button class="btn btn-ghost btn-sm" onclick="renderPartTable()">↺ Annuler</button>
+    </div>
+    <p style="color:var(--ink-dim);font-size:.82rem;margin-top:10px">Saison affichée : <strong>${_partYear}</strong> · ${list.length} partenaire${list.length>1?'s':''}</p>`;
+}
+function partRow(p={}){
+  const id=p.id||'';
+  const rid='pr_'+(id||Math.random().toString(36).slice(2,9));
+  return `<tr data-id="${id}" data-rid="${rid}">
+    <td class="pt-check"><input type="checkbox" class="pt-sel"></td>
+    <td class="pt-logo">
+      ${p.logo_url?`<img src="${esc(p.logo_url)}" alt="">`:'<span style="color:var(--ink-dim);font-size:.75rem">—</span>'}
+      <input type="hidden" class="pt-logourl" value="${esc(p.logo_url||'')}">
+      <input type="file" accept="image/*" style="display:none" class="pt-file" onchange="uploadPartLogo(this)">
+      <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:.7rem;margin-top:3px" onclick="this.parentElement.querySelector('.pt-file').click()">📷</button>
+    </td>
+    <td><input type="text" class="pt-nom" value="${esc(p.nom||'')}" placeholder="Nom du partenaire"></td>
+    <td><input type="text" class="pt-lien" value="${esc(p.lien||'')}" placeholder="https://…"></td>
+    <td><input type="text" class="pt-ordre" value="${p.ordre??0}" style="width:60px"></td>
+    <td class="pt-act">
+      ${id?`<button class="btn btn-danger btn-sm" style="padding:3px 8px" onclick="delPartRow('${id}')">✕</button>`:`<button class="btn btn-ghost btn-sm" style="padding:3px 8px" onclick="this.closest('tr').remove()">✕</button>`}
+    </td>
+  </tr>`;
+}
+function addPartRows(n){
+  const tb=$('#partTbody');if(!tb)return;
+  let html='';
+  const base=tb.querySelectorAll('tr').length;
+  for(let i=0;i<n;i++)html+=partRow({ordre:(base+i+1)*10});
+  tb.insertAdjacentHTML('beforeend',html);
+}
+function partCheckAll(v){$$('#partTbody .pt-sel').forEach(cb=>{cb.checked=v;});}
+async function uploadPartLogo(input){
+  const f=input.files?.[0];if(!f)return;
+  const td=input.closest('td');
+  try{
+    toast('Envoi du logo…');
+    const url=await uploadFile(f,'partenaires');
+    td.querySelector('.pt-logourl').value=url;
+    const img=td.querySelector('img');
+    if(img)img.src=url;
+    else td.insertAdjacentHTML('afterbegin',`<img src="${esc(url)}" alt="">`);
+    const ph=td.querySelector('span');if(ph)ph.remove();
+    toast('Logo ajouté ✓');
+  }catch(e){toast('Erreur upload',true);}
+}
+async function delPartRow(id){
+  if(!confirm('Supprimer ce partenaire ?'))return;
+  const {error}=await sb.from('partenaires').delete().eq('id',id);
+  if(error)return toast(error.message,true);
+  toast('Supprimé');loadPartenaires();
+}
+async function savePartTable(){
+  const rows=$$('#partTbody tr');
+  const toInsert=[],toUpdate=[];
+  rows.forEach(tr=>{
+    const nom=tr.querySelector('.pt-nom').value.trim();
+    if(!nom)return; // ligne vide ignorée
+    const rec={
+      nom,
+      lien:tr.querySelector('.pt-lien').value.trim()||null,
+      logo_url:tr.querySelector('.pt-logourl').value.trim()||null,
+      ordre:parseInt(tr.querySelector('.pt-ordre').value)||0,
+      annee:_partYear
+    };
+    const id=tr.dataset.id;
+    if(id)toUpdate.push({id,...rec});else toInsert.push(rec);
+  });
+  if(!toInsert.length&&!toUpdate.length)return toast('Rien à enregistrer');
+  toast('Enregistrement…');
+  let err=null;
+  if(toInsert.length){const{error}=await sb.from('partenaires').insert(toInsert);if(error)err=error;}
+  for(const u of toUpdate){
+    const {id,...rec}=u;
+    const {error}=await sb.from('partenaires').update(rec).eq('id',id);
+    if(error)err=error;
+  }
+  if(err)return toast(err.message,true);
+  toast(`✓ ${toInsert.length} ajouté(s), ${toUpdate.length} modifié(s)`);
+  loadPartenaires();
+}
+async function duplicatePartners(targetYear){
+  const checked=[];
+  $$('#partTbody tr').forEach(tr=>{
+    if(tr.querySelector('.pt-sel')?.checked){
+      const nom=tr.querySelector('.pt-nom').value.trim();
+      if(nom)checked.push({
+        nom,
+        lien:tr.querySelector('.pt-lien').value.trim()||null,
+        logo_url:tr.querySelector('.pt-logourl').value.trim()||null,
+        ordre:parseInt(tr.querySelector('.pt-ordre').value)||0,
+        annee:targetYear
+      });
+    }
+  });
+  if(!checked.length)return toast('Coche au moins un partenaire',true);
+  if(!confirm(`Reporter ${checked.length} partenaire(s) vers la saison ${targetYear} ?`))return;
+  const {error}=await sb.from('partenaires').insert(checked);
+  if(error)return toast(error.message,true);
+  toast(`✓ ${checked.length} partenaire(s) reporté(s) vers ${targetYear}`);
+  _partYear=targetYear;loadPartenaires();
 }
 
 /* ---- Pages texte ---- */
@@ -2853,7 +3029,7 @@ async function openPartenaireForm(id){
     <button class="btn btn-primary" onclick="savePartenaire('${id||''}')">Enregistrer</button>`);
 }
 async function savePartenaire(id){
-  const p={nom:$('#pa-nom').value.trim(),logo_url:$('#pa-logo').value.trim()||null,lien:$('#pa-lien').value.trim()||null,ordre:parseInt($('#pa-ordre').value)||0};
+  const p={nom:$('#pa-nom').value.trim(),logo_url:$('#pa-logo').value.trim()||null,lien:$('#pa-lien').value.trim()||null,ordre:parseInt($('#pa-ordre').value)||0,annee:_partYear};
   if(!p.nom)return toast('Nom requis',true);
   const {error}=id?await sb.from('partenaires').update(p).eq('id',id):await sb.from('partenaires').insert(p);
   if(error)return toast(error.message,true);
