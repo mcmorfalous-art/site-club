@@ -42,6 +42,8 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,26,36,.92);backdrop-
 .nav-links button.active{color:var(--accent)}
 .nav-links button.nav-install{background:var(--accent)!important;color:#0a1a24!important;font-weight:800}
 .nav-links button.nav-install:hover{background:var(--amber)!important;color:#0a1a24!important}
+.nav-links button.nav-notif{background:var(--amber)!important;color:#0a1a24!important;font-weight:800}
+.nav-links button.nav-notif:hover{background:var(--accent)!important;color:#0a1a24!important}
 .nav-bureau{border:1px solid var(--line);color:var(--ink-dim)!important;font-size:.92rem!important}
 .nav-bureau:hover{border-color:var(--accent);color:var(--accent)!important;background:transparent!important}
 .nav-cta{background:var(--accent)!important;color:#0a1a24!important}
@@ -503,6 +505,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <button class="nav-open" data-page="ouverture" onclick="go('ouverture')">Ouverture</button>
       <button class="nav-travaux" data-page="travaux" onclick="go('travaux')">Travaux</button>
       <button id="installBtnNav" class="nav-install" onclick="installApp()" style="display:none">📲 Installer</button>
+      <button id="notifBtnNav" class="nav-notif" onclick="subscribePush()" style="display:none">🔔 Notifications</button>
       <button id="btnBureau" class="nav-bureau" onclick="bureauClick()">🔒 Bureau</button>
       <button class="admin-only nav-cta" data-page="admin" onclick="go('admin')" style="background:var(--hot)!important;color:#fff!important">Admin</button>
     </nav>
@@ -2949,9 +2952,33 @@ async function getPushState(){
 }
 async function subscribePush(){
   if(!PUSH_SUPPORTED)return toast("Ton navigateur ne gère pas les notifications",true);
+  // Popup explicatif avant de demander l'autorisation
+  openModal('🔔 Activer les notifications',`
+    <p style="margin-bottom:14px">Reçois une alerte sur ton téléphone dès qu'il y a du nouveau : ouverture du terrain, journée travaux, compte-rendu, nouvel événement…</p>
+    <div style="background:rgba(242,169,59,.12);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <p style="margin:0;font-size:.9rem;line-height:1.6"><strong style="color:var(--amber)">⚠️ Avant de continuer</strong><br>
+      <span style="color:var(--ink-dim)">Ton navigateur va te demander l'autorisation : appuie sur <strong>« Autoriser »</strong>.<br><br>
+      Si rien ne se passe ou si tu as déjà refusé, vérifie les <strong>réglages de ton téléphone</strong> :<br>
+      • <strong>Android</strong> : Paramètres → Applications → ton navigateur (ou l'app Morfalous) → Notifications → Autoriser<br>
+      • <strong>iPhone</strong> : le site doit d'abord être <strong>installé sur l'écran d'accueil</strong> via Safari, puis Réglages → Notifications</span></p>
+    </div>
+    <button class="btn btn-primary" onclick="doSubscribePush()">🔔 Activer maintenant</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="closeModal()">Plus tard</button>`);
+}
+async function doSubscribePush(){
+  closeModal();
   try{
     const perm=await Notification.requestPermission();
-    if(perm!=='granted'){toast('Notifications refusées');refreshNotifBtn();return;}
+    if(perm!=='granted'){
+      openModal('Notifications bloquées',`
+        <p style="margin-bottom:14px">Les notifications n'ont pas été autorisées.</p>
+        <p style="color:var(--ink-dim);font-size:.9rem;line-height:1.7">Pour les activer, va dans les <strong>réglages de ton téléphone</strong> :<br><br>
+        • <strong>Android</strong> : Paramètres → Applications → ton navigateur → Notifications → Autoriser<br>
+        • <strong>iPhone</strong> : Réglages → Notifications → cherche l'app → Autoriser<br><br>
+        Puis reviens sur le site et réessaie.</p>
+        <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="closeModal()">J'ai compris</button>`);
+      refreshNotifBtn();return;
+    }
     const reg=await navigator.serviceWorker.ready;
     let sub=await reg.pushManager.getSubscription();
     if(!sub){
@@ -2960,9 +2987,10 @@ async function subscribePush(){
     const {error}=await sb.functions.invoke('save-subscription',{body:{subscription:sub.toJSON(),userAgent:navigator.userAgent}});
     if(error){toast("Erreur d'abonnement",true);return;}
     toast('Notifications activées ! 🔔');refreshNotifBtn();
-  }catch(e){toast("Impossible d'activer les notifications",true);}
+  }catch(e){toast("Impossible d'activer les notifications",true);refreshNotifBtn();}
 }
 async function unsubscribePush(){
+  if(!confirm('Désactiver les notifications du club ?'))return;
   try{
     const reg=await navigator.serviceWorker.ready;
     const sub=await reg.pushManager.getSubscription();
@@ -2974,15 +3002,35 @@ async function unsubscribePush(){
   }catch(e){toast('Erreur',true);}
 }
 async function refreshNotifBtn(){
-  const btn=$('#notifBtn');if(!btn)return;
+  const nav=$('#notifBtnNav'), foot=$('#notifBtn');
   const state=await getPushState();
-  if(state==='unsupported'||state==='denied'){btn.style.display='none';return;}
-  btn.style.display='inline-flex';
-  if(state==='subscribed'){btn.textContent='🔔 Notifications activées';btn.classList.add('notif-on');}
-  else{btn.textContent='🔔 Activer les notifications';btn.classList.remove('notif-on');}
+  // Bouton nav : visible UNIQUEMENT si pas encore abonné (incitation)
+  if(nav){
+    nav.style.display=(state==='default')?'inline-flex':'none';
+  }
+  // Bouton footer : toujours présent, permet d'activer ou désactiver
+  if(foot){
+    if(state==='unsupported'){foot.style.display='none';return;}
+    foot.style.display='inline-flex';
+    if(state==='subscribed'){foot.textContent='🔔 Notifications activées';foot.classList.add('notif-on');}
+    else if(state==='denied'){foot.textContent='🔕 Notifications bloquées';foot.classList.remove('notif-on');}
+    else{foot.textContent='🔔 Activer les notifications';foot.classList.remove('notif-on');}
+  }
 }
 function toggleNotif(){
-  getPushState().then(s=>{if(s==='subscribed')unsubscribePush();else subscribePush();});
+  getPushState().then(s=>{
+    if(s==='subscribed')unsubscribePush();
+    else if(s==='denied'){
+      openModal('Notifications bloquées',`
+        <p style="margin-bottom:14px">Tu as bloqué les notifications pour ce site.</p>
+        <p style="color:var(--ink-dim);font-size:.9rem;line-height:1.7">Pour les réactiver, va dans les <strong>réglages de ton téléphone</strong> :<br><br>
+        • <strong>Android</strong> : Paramètres → Applications → ton navigateur → Notifications → Autoriser<br>
+        • <strong>iPhone</strong> : Réglages → Notifications → cherche l'app → Autoriser<br><br>
+        Tu peux aussi le faire depuis le cadenas 🔒 dans la barre d'adresse de ton navigateur.</p>
+        <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="closeModal()">J'ai compris</button>`);
+    }
+    else subscribePush();
+  });
 }
 
 /* --- Envoi admin --- */
