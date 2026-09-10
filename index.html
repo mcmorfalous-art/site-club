@@ -105,6 +105,8 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .insc-filters button{background:var(--surface);border:1px solid var(--line);color:var(--ink-dim);border-radius:20px;padding:7px 14px;font-family:var(--font-disp);font-weight:700;font-size:.82rem;text-transform:uppercase;cursor:pointer;transition:all .12s}
 .insc-filters button:hover{border-color:var(--accent);color:var(--ink)}
 .insc-filters button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
+.insc-filters button.insc-export{background:var(--surface-2);border-color:var(--green);color:var(--green);margin-left:auto}
+.insc-filters button.insc-export:hover{background:var(--green);color:#0a1a24}
 /* Journal des annulations */
 .annul-list{display:flex;flex-direction:column;gap:8px}
 .annul-row{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
@@ -113,6 +115,7 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .annul-info strong{color:var(--ink)}
 .annul-detail{color:var(--accent);font-size:.88rem}
 .annul-date{color:var(--ink-dim);font-size:.8rem}
+.insc-closed{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);color:var(--amber);border:1px solid var(--amber);border-radius:20px;padding:6px 13px;font-family:var(--font-disp);font-weight:700;font-size:.82rem;text-transform:uppercase;white-space:nowrap}
 .actu-filters button{background:var(--surface);border:1px solid var(--line);color:var(--ink-dim);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.82rem;padding:7px 14px;border-radius:20px;cursor:pointer;transition:all .12s}
 .actu-filters button:hover{border-color:var(--accent);color:var(--ink)}
 .actu-filters button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
@@ -1883,7 +1886,11 @@ function calItem(e){
     </div>`;
   }
   let cta='';
-  if(e.inscriptions) cta=`<button class="btn btn-primary btn-sm" onclick="openInscription('${e.id}')">S'inscrire</button>`;
+  if(e.inscriptions){
+    cta=e.inscriptions_fermees
+      ? `<span class="insc-closed">🔒 Inscriptions fermées</span>`
+      : `<button class="btn btn-primary btn-sm" onclick="openInscription('${e.id}')">S'inscrire</button>`;
+  }
   return `<div class="cal-item">
     <div class="cal-date"><div class="d">${dm.d}</div><div class="m">${dm.m}</div></div>
     <div class="cal-info">
@@ -1965,9 +1972,63 @@ function renderInscFilters(){
   });
   const events=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   bar.innerHTML=`<button class="${_inscFilter==='tous'?'active':''}" onclick="setInscFilter('tous')">Tous (${_inscCache.length})</button>`+
-    events.map(([t,n])=>`<button class="${_inscFilter===t?'active':''}" onclick="setInscFilter('${esc(t).replace(/'/g,"\\'")}')">${esc(t)} (${n})</button>`).join('');
+    events.map(([t,n])=>`<button class="${_inscFilter===t?'active':''}" onclick="setInscFilter('${esc(t).replace(/'/g,"\\'")}')">${esc(t)} (${n})</button>`).join('')+
+    `<button class="insc-export" onclick="exportInscriptions()">🖨️ Exporter / imprimer</button>`;
 }
 function setInscFilter(f){_inscFilter=f;renderInscFilters();renderInscriptions();}
+function exportInscriptions(){
+  let list=_inscCache;
+  if(_inscFilter!=='tous')list=_inscCache.filter(i=>(i.evenements?.titre||'Sans événement')===_inscFilter);
+  if(!list.length)return toast('Aucune inscription à exporter',true);
+  const titreEvent=_inscFilter==='tous'?'Toutes les inscriptions':_inscFilter;
+  // Colonnes : union de toutes les clés de réponses + champs de base
+  const cols=new Set();
+  list.forEach(i=>{
+    if(i.reponses&&typeof i.reponses==='object')Object.keys(i.reponses).forEach(k=>cols.add(k));
+  });
+  const hasBase=list.some(i=>!i.reponses||!Object.keys(i.reponses||{}).length);
+  const colList=[...cols];
+  // Lignes du tableau
+  const rows=list.map(i=>{
+    const rep=i.reponses&&typeof i.reponses==='object'?i.reponses:{};
+    const cells=colList.map(c=>escH(String(rep[c]??'')));
+    let base='';
+    if(hasBase&&!colList.length){
+      base=`<td>${escH(i.nom||'')}</td><td>${i.nb_personnes||1}</td><td>${escH(i.email||'')}</td><td>${escH(i.telephone||'')}</td>`;
+    }
+    return `<tr><td>${escH(i.nom||(rep&&Object.values(rep)[0])||'—')}</td>${cells.map(c=>`<td>${c}</td>`).join('')}${base}</tr>`;
+  }).join('');
+  const headCols=colList.length
+    ? `<th>Nom</th>${colList.map(c=>`<th>${escH(c)}</th>`).join('')}`
+    : `<th>Nom</th><th>Personnes</th><th>Email</th><th>Téléphone</th>`;
+  const now=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Inscriptions — ${escH(titreEvent)}</title>
+    <style>
+      *{font-family:Arial,Helvetica,sans-serif}
+      body{margin:24px;color:#111}
+      h1{font-size:20px;margin:0 0 4px}
+      .sub{color:#555;font-size:13px;margin-bottom:16px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#eee;font-weight:bold}
+      tr:nth-child(even) td{background:#f6f6f6}
+      .foot{margin-top:16px;font-size:11px;color:#888}
+      @media print{.noprint{display:none}}
+      .noprint{margin-bottom:16px}
+      .btn{background:#17415a;color:#fff;border:none;padding:10px 18px;border-radius:6px;font-size:14px;cursor:pointer}
+    </style></head><body>
+    <div class="noprint"><button class="btn" onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button></div>
+    <h1>MC Les Morfalous — Inscriptions</h1>
+    <div class="sub">${escH(titreEvent)} · ${list.length} inscrit${list.length>1?'s':''} · Exporté le ${now}</div>
+    <table><thead><tr>${headCols}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="foot">Document généré depuis mc-morfalous.fr</div>
+    </body></html>`;
+  const w=window.open('','_blank');
+  if(!w){toast('Autorise les pop-ups pour exporter',true);return;}
+  w.document.write(html);w.document.close();
+}
+// échappe le HTML pour la fenêtre d'impression (contexte séparé)
+function escH(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function renderInscriptions(){
   const cont=$('#calInscriptionsList');if(!cont)return;
   let list=_inscCache;
@@ -2881,6 +2942,7 @@ async function envoyerSoumission(type){
 async function openInscription(eventId){
   const {data:e}=await sb.from('evenements').select('*').eq('id',eventId).single();
   if(!e)return;
+  if(e.inscriptions_fermees){toast('Les inscriptions sont fermées pour cet événement',true);return;}
   const champs=Array.isArray(e.champs_inscription)&&e.champs_inscription.length?e.champs_inscription:CHAMPS_PREDEF.slice(0,5).map(c=>({...c,required:c.key==='nom'}));
   const fieldsHtml=champs.map((f,i)=>renderInscField(f,i)).join('');
   openModal('Inscription — '+e.titre,`
@@ -2994,6 +3056,7 @@ async function openEventForm(id){
     ${fld('Début','ev-debut',dt,'datetime-local')}
     ${fld('Fin (optionnel)','ev-fin',df,'datetime-local')}
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="ev-ins" ${e.inscriptions?'checked':''} style="width:auto" onchange="toggleFormBuilder(this.checked)"> Inscription directe sur le site</label>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px;color:var(--amber)"><input type="checkbox" id="ev-insfermees" ${e.inscriptions_fermees?'checked':''} style="width:auto"> 🔒 Fermer les inscriptions (garde la liste, bloque les nouvelles)</label>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="ev-proc" ${e.procurations?'checked':''} style="width:auto"> Activer les procurations (pour l'AG)</label>
     <div id="formBuilder" style="${e.inscriptions?'':'display:none'};border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px">
       <h4 style="font-family:var(--font-disp);text-transform:uppercase;font-size:1rem;margin-bottom:10px">📋 Champs du formulaire</h4>
@@ -3064,7 +3127,7 @@ function confirmChampPerso(){
   renderChamps();
 }
 async function saveEvent(id){
-  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,inscriptions:$('#ev-ins').checked,procurations:$('#ev-proc').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
+  const p={titre:$('#ev-titre').value.trim(),description:$('#ev-desc').value.trim()||null,lieu:$('#ev-lieu').value.trim()||null,type:$('#ev-type').value,date_debut:$('#ev-debut').value?new Date($('#ev-debut').value).toISOString():null,date_fin:$('#ev-fin').value?new Date($('#ev-fin').value).toISOString():null,inscriptions:$('#ev-ins').checked,inscriptions_fermees:$('#ev-insfermees').checked,procurations:$('#ev-proc').checked,champs_inscription:$('#ev-ins').checked?_formChamps:null};
   if(!p.titre||!p.date_debut)return toast('Titre et date requis',true);
   const {error}=id?await sb.from('evenements').update(p).eq('id',id):await sb.from('evenements').insert(p);
   if(error)return toast(error.message,true);
