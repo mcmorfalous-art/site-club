@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#0a1a24;--surface:#102634;--surface-2:#17415a;--line:#234a60;
@@ -107,6 +108,9 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .insc-filters button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
 .insc-filters button.insc-export{background:var(--surface-2);border-color:var(--green);color:var(--green);margin-left:auto}
 .insc-filters button.insc-export:hover{background:var(--green);color:#0a1a24}
+.xlsx-exports{margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.xlsx-exports .btn{border-color:var(--green);color:var(--green)}
+.xlsx-exports .btn:hover{background:var(--green);color:#0a1a24}
 /* Journal des annulations */
 .annul-list{display:flex;flex-direction:column;gap:8px}
 .annul-row{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
@@ -408,12 +412,16 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 .ouv-free:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(92,198,232,.25)}
 .ouv-taken{background:var(--surface-2);border-color:var(--green);cursor:pointer}
 .ouv-taken:hover{border-color:var(--accent)}
+.ouv-ferme{background:rgba(232,71,46,.12);border-color:var(--hot);cursor:pointer}
+.ouv-ferme:hover{border-color:var(--amber)}
+.ouv-ferme .ouv-num{color:var(--hot)}
 .ouv-num{font-size:1.1rem;font-weight:700;color:var(--ink)}
 .ouv-dot{font-size:.75rem;line-height:1}
 .ouv-legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;color:var(--ink-dim);font-size:.85rem;margin-bottom:28px}
 .ouv-legend .lg{display:inline-flex;width:20px;height:20px;border-radius:4px;align-items:center;justify-content:center;font-size:.7rem;vertical-align:middle;margin-right:4px}
 .ouv-legend .lg-free{background:linear-gradient(135deg,#123f55,#0e2f42);border:1px solid var(--accent)}
 .ouv-legend .lg-taken{background:var(--surface-2);border:1px solid var(--green)}
+.ouv-legend .lg-ferme{background:rgba(232,71,46,.12);border:1px solid var(--hot)}
 .ouv-legend .lg-closed{background:var(--surface);opacity:.4}
 @media(max-width:600px){.ouv-num{font-size:.9rem}.ouv-day{border-radius:6px}.ouv-grid{gap:4px}}
 .creneau{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;padding:18px;transition:transform .15s,border-color .15s,box-shadow .15s;cursor:pointer;text-align:left}
@@ -1054,6 +1062,148 @@ function openExternal(key){
   window.open(url,'_blank','noopener');
 }
 
+/* ============ EXPORTS EXCEL (SheetJS) ============ */
+function xlsxReady(){
+  if(typeof XLSX==='undefined'){toast('Librairie Excel non chargée, réessaie',true);return false;}
+  return true;
+}
+function dlSheet(rows, sheetName, fileName){
+  const ws=XLSX.utils.json_to_sheet(rows);
+  // largeur auto des colonnes
+  const cols=Object.keys(rows[0]||{}).map(k=>({wch:Math.min(40,Math.max(k.length+2,...rows.map(r=>String(r[k]??'').length+2)))}));
+  ws['!cols']=cols;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,fileName);
+}
+function dlMultiSheet(sheets, fileName){
+  const wb=XLSX.utils.book_new();
+  sheets.forEach(({name,rows})=>{
+    const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{Info:'Aucune donnée'}]);
+    if(rows.length){ws['!cols']=Object.keys(rows[0]).map(k=>({wch:Math.min(40,Math.max(k.length+2,...rows.map(r=>String(r[k]??'').length+2)))}));}
+    XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));
+  });
+  XLSX.writeFile(wb,fileName);
+}
+function frDate(iso){
+  if(!iso)return '';
+  try{return new Date(iso.length<=10?iso+'T00:00:00':iso).toLocaleDateString('fr-FR');}catch(_){return iso;}
+}
+
+// 1) OUVERTURES du terrain
+async function exportOuverturesXlsx(){
+  if(!xlsxReady())return;
+  toast('Génération du fichier…');
+  const {data}=await sb.from('ouvertures_reservations').select('*').order('date_jour',{ascending:false});
+  const list=(data||[]).filter(r=>r.nom); // exclure les jours "fermés" sans responsable
+  if(!list.length)return toast('Aucune ouverture à exporter',true);
+  // Feuille détail
+  const detail=list.map(r=>({
+    Date:frDate(r.date_jour), Créneau:r.creneau||'', Responsable:r.nom||'',
+    Téléphone:r.telephone||'', Licence:r.licence||''
+  }));
+  // Feuille récap par pilote
+  const counts={};list.forEach(r=>{const k=(r.nom||'?').trim();counts[k]=(counts[k]||0)+1;});
+  const recap=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([nom,n])=>({Responsable:nom,'Nombre d\'ouvertures':n}));
+  dlMultiSheet([
+    {name:'Détail', rows:detail},
+    {name:'Récap par pilote', rows:recap}
+  ], `ouvertures-morfalous-${isoD(new Date())}.xlsx`);
+  toast('Fichier téléchargé ✓');
+}
+
+// 2) TRAVAUX (présences)
+async function exportTravauxXlsx(){
+  if(!xlsxReady())return;
+  toast('Génération du fichier…');
+  const {data:dates}=await sb.from('travaux_dates').select('*').order('date_jour',{ascending:false});
+  const {data:inscs}=await sb.from('travaux_inscriptions').select('*');
+  if(!dates?.length)return toast('Aucune journée travaux à exporter',true);
+  const byDate={};(inscs||[]).forEach(i=>{(byDate[i.travaux_id]=byDate[i.travaux_id]||[]).push(i);});
+  // Détail : une ligne par participant
+  const detail=[];
+  dates.forEach(d=>{
+    const parts=byDate[d.id]||[];
+    if(!parts.length){detail.push({Date:frDate(d.date_jour),Journée:d.titre||'Journée travaux',Participant:'(aucun inscrit)',Statut:'',Casse_croûte:''});}
+    parts.forEach(p=>detail.push({
+      Date:frDate(d.date_jour), Journée:d.titre||'Journée travaux',
+      Participant:p.nom||'', Statut:p.statut||'', Casse_croûte:p.casse_croute?'Oui':'Non'
+    }));
+  });
+  // Récap par bénévole
+  const counts={};(inscs||[]).forEach(i=>{if(dates.some(d=>d.id===i.travaux_id)){const k=(i.nom||'?').trim();counts[k]=(counts[k]||0)+1;}});
+  const recap=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([nom,n])=>({Bénévole:nom,'Nombre de participations':n}));
+  dlMultiSheet([
+    {name:'Détail présences', rows:detail},
+    {name:'Récap par bénévole', rows:recap}
+  ], `travaux-morfalous-${isoD(new Date())}.xlsx`);
+  toast('Fichier téléchargé ✓');
+}
+
+// 3) ÉVÉNEMENTS (inscriptions, présents/absents séparés)
+async function exportEvenementsXlsx(){
+  if(!xlsxReady())return;
+  toast('Génération du fichier…');
+  const {data}=await sb.from('inscriptions').select('*, evenements(titre,date_debut)').order('created_at',{ascending:false});
+  const list=data||[];
+  if(!list.length)return toast('Aucune inscription à exporter',true);
+  const ligne=i=>{
+    const rep=(i.reponses&&typeof i.reponses==='object')?i.reponses:{};
+    const base={
+      Événement:i.evenements?.titre||'—',
+      'Date événement':frDate(i.evenements?.date_debut),
+      Nom:i.nom||rep['Nom / Prénom']||'',
+    };
+    // ajouter toutes les réponses du formulaire
+    Object.entries(rep).forEach(([k,v])=>{ if(k!=='Nom / Prénom') base[k]=v; });
+    return base;
+  };
+  const presents=list.filter(i=>(i.reponses?.['Présence']!=='Absent·e')).map(ligne);
+  const absents=list.filter(i=>(i.reponses?.['Présence']==='Absent·e')).map(ligne);
+  const sheets=[{name:'Présents', rows:presents}];
+  if(absents.length)sheets.push({name:'Absents', rows:absents});
+  sheets.push({name:'Tout', rows:list.map(ligne)});
+  dlMultiSheet(sheets, `evenements-morfalous-${isoD(new Date())}.xlsx`);
+  toast('Fichier téléchargé ✓');
+}
+
+// 4) FRÉQUENTATION du site
+async function exportStatsXlsx(){
+  if(!xlsxReady())return;
+  toast('Génération du fichier…');
+  const {data}=await sb.from('visites').select('*').order('created_at',{ascending:false});
+  const v=data||[];
+  if(!v.length)return toast('Aucune visite à exporter',true);
+  // Feuille visites par jour
+  const parJour={};v.forEach(x=>{const d=(x.created_at||'').slice(0,10);parJour[d]=(parJour[d]||0)+1;});
+  const jours=Object.entries(parJour).sort((a,b)=>a[0]<b[0]?1:-1).map(([d,n])=>({Date:frDate(d),'Pages vues':n}));
+  // Pages
+  const pages={};v.forEach(x=>{pages[x.page]=(pages[x.page]||0)+1;});
+  const pagesRows=Object.entries(pages).sort((a,b)=>b[1]-a[1]).map(([p,n])=>({Page:p,'Vues':n}));
+  // Appareils
+  const app={};v.forEach(x=>{const k=x.appareil||'?';app[k]=(app[k]||0)+1;});
+  const appRows=Object.entries(app).sort((a,b)=>b[1]-a[1]).map(([a,n])=>({Appareil:a,'Vues':n,'%':Math.round(n/v.length*100)}));
+  // Provenance
+  const ref={};v.forEach(x=>{const k=x.referrer||'direct';ref[k]=(ref[k]||0)+1;});
+  const refRows=Object.entries(ref).sort((a,b)=>b[1]-a[1]).map(([r,n])=>({Provenance:r,'Vues':n}));
+  // Synthèse
+  const uniques=new Set(v.map(x=>x.visiteur)).size;
+  const synth=[
+    {Indicateur:'Pages vues (total)', Valeur:v.length},
+    {Indicateur:'Visiteurs uniques', Valeur:uniques},
+    {Indicateur:'Pages par visiteur', Valeur:Math.round(v.length/uniques*10)/10},
+    {Indicateur:'Visites depuis l\'app', Valeur:v.filter(x=>x.installee).length},
+  ];
+  dlMultiSheet([
+    {name:'Synthèse', rows:synth},
+    {name:'Par jour', rows:jours},
+    {name:'Par page', rows:pagesRows},
+    {name:'Appareils', rows:appRows},
+    {name:'Provenance', rows:refRows}
+  ], `frequentation-morfalous-${isoD(new Date())}.xlsx`);
+  toast('Fichier téléchargé ✓');
+}
+
 /* ============ STATISTIQUES (compteur maison, sans cookies) ============ */
 // Identifiant de session anonyme : régénéré à chaque ouverture du site,
 // stocké uniquement en mémoire. Aucun cookie, aucune donnée personnelle.
@@ -1418,6 +1568,7 @@ function creneauDuJour(d){
 }
 let _ouvMonth=null; // Date au 1er du mois affiché
 let _ouvResa={};    // iso -> réservation
+let _ouvFerme={};   // iso -> motif de fermeture manuelle
 
 async function loadOuverture(){
   const cont=$('#ouvCalendar');cont.innerHTML='<div class="loading">Chargement…</div>';
@@ -1426,6 +1577,9 @@ async function loadOuverture(){
   // charger les réservations à venir
   const {data}=await sb.from('ouvertures_reservations').select('*').gte('date_jour',isoD(today));
   _ouvResa={};(data||[]).forEach(r=>{_ouvResa[r.date_jour]=r;});
+  // charger les jours de fermeture manuelle du terrain
+  const {data:ferm}=await sb.from('ouvertures_fermetures').select('*');
+  _ouvFerme={};(ferm||[]).forEach(f=>{_ouvFerme[f.date_jour]=f.motif||'Terrain fermé';});
   renderOuvCalendar();
   // archive admin
   const wrap=$('#ouvArchiveWrap');
@@ -1506,7 +1660,14 @@ function renderOuvCalendar(){
       continue;
     }
     const resa=_ouvResa[iso];
+    const fermeManuel=_ouvFerme[iso];
     if(past){cells+=`<div class="ouv-day ouv-closed">${day}</div>`;continue;}
+    // jour marqué fermé par l'admin
+    if(fermeManuel){
+      cells+=`<button class="ouv-day ouv-ferme" onclick="ouvShowDay('${iso}')" title="${esc(fermeManuel)}">
+        <span class="ouv-num">${day}</span><span class="ouv-dot">🚫</span></button>`;
+      continue;
+    }
     if(resa){
       cells+=`<button class="ouv-day ouv-taken" onclick="ouvShowDay('${iso}')" title="Réservé par ${esc(resa.nom)}">
         <span class="ouv-num">${day}</span><span class="ouv-dot">✅</span></button>`;
@@ -1525,14 +1686,27 @@ function renderOuvCalendar(){
     <div class="ouv-legend">
       <span><span class="lg lg-free">🔑</span> Libre</span>
       <span><span class="lg lg-taken">✅</span> Responsable trouvé</span>
-      <span><span class="lg lg-closed"></span> Fermé</span>
+      <span><span class="lg lg-ferme">🚫</span> Terrain fermé</span>
+      <span><span class="lg lg-closed"></span> Pas d'ouverture</span>
     </div>`;
 }
 function ouvShowDay(iso){
   const d=new Date(iso+'T00:00:00');
   const horaire=creneauDuJour(d);
   const resa=_ouvResa[iso];
+  const fermeManuel=_ouvFerme[iso];
   const dateStr=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  // Jour marqué fermé par l'admin
+  if(fermeManuel){
+    openModal('Terrain fermé — '+dateStr,`
+      <div style="background:var(--surface-2);border-radius:8px;padding:16px;margin-bottom:16px;text-align:center">
+        <p style="font-size:1.6rem;margin:0 0 8px">🚫</p>
+        <p style="margin:0;font-weight:700">Le terrain est fermé ce jour-là</p>
+        ${fermeManuel!=='Terrain fermé'?`<p style="margin:8px 0 0;color:var(--ink-dim)">${esc(fermeManuel)}</p>`:''}
+      </div>
+      ${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="reopenTerrain('${iso}')">↩️ Rouvrir ce jour (admin)</button>`:'<p style="color:var(--ink-dim);font-size:.85rem;text-align:center">Aucune ouverture possible ce jour.</p>'}`);
+    return;
+  }
   if(resa){
     openModal('Créneau du '+dateStr,`
       <p style="color:var(--ink-dim);margin-bottom:8px">Horaire : <strong style="color:var(--ink)">${esc(horaire)}</strong></p>
@@ -1554,7 +1728,21 @@ function ouvShowDay(iso){
     ${fld('Numéro de licence','respo-lic','','text','')}
     <div class="field"><label>🔒 Code du club <span style="color:var(--hot)">*</span></label><input id="respo-code" type="text" placeholder="Code réservé aux licenciés" autocomplete="off"><small style="color:var(--ink-dim);display:block;margin-top:4px">Code communiqué aux licenciés du club</small></div>
     <button class="btn btn-primary" onclick="submitRespo('${iso}','${esc(horaire)}')">Je m'inscris comme responsable</button>
-    ${isAdmin?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><p style="color:var(--amber);font-size:.85rem;margin:0 0 10px">👑 Admin : inscrire quelqu'un directement (sans code club)</p><button class="btn btn-ghost btn-sm" onclick="submitRespoAdmin('${iso}','${esc(horaire)}')">Ajouter cette personne (admin)</button></div>`:''}`);
+    ${isAdmin?`<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)"><p style="color:var(--amber);font-size:.85rem;margin:0 0 10px">👑 Admin : inscrire quelqu'un directement (sans code club)</p><button class="btn btn-ghost btn-sm" onclick="submitRespoAdmin('${iso}','${esc(horaire)}')">Ajouter cette personne (admin)</button>
+    <p style="color:var(--hot);font-size:.85rem;margin:16px 0 10px">🚫 Ou marquer ce jour comme fermé (personne ne roule)</p><button class="btn btn-danger btn-sm" onclick="closeTerrain('${iso}')">Terrain fermé ce jour</button></div>`:''}`);
+}
+async function closeTerrain(iso){
+  const motif=prompt('Motif de la fermeture (optionnel) :\nEx : Météo, jour férié, terrain impraticable…','');
+  if(motif===null)return; // annulé
+  const {error}=await sb.from('ouvertures_fermetures').insert({date_jour:iso,motif:motif.trim()||'Terrain fermé'});
+  if(error)return toast(error.message,true);
+  closeModal();toast('Jour marqué fermé 🚫');loadOuverture();
+}
+async function reopenTerrain(iso){
+  if(!confirm('Rouvrir ce jour ?'))return;
+  const {error}=await sb.from('ouvertures_fermetures').delete().eq('date_jour',iso);
+  if(error)return toast(error.message,true);
+  closeModal();toast('Jour rouvert ✓');loadOuverture();
 }
 /* Ajout du créneau d'ouverture au calendrier (Google ou .ics) */
 function ouvAddToCalendar(iso,horaire){
@@ -3403,6 +3591,15 @@ async function loadAdmin(){
         <button onclick="setStatsPeriod(365,this)">1 an</button>
       </div>
       <div id="statsContent"><div class="loading">Chargement…</div></div>
+      <div class="xlsx-exports">
+        <p style="font-family:var(--font-disp);font-weight:800;text-transform:uppercase;font-size:.9rem;color:var(--ink);margin:0 0 10px">📥 Exports Excel</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="exportOuverturesXlsx()">🔑 Ouvertures</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportTravauxXlsx()">🔧 Travaux</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportEvenementsXlsx()">📅 Événements</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportStatsXlsx()">📊 Fréquentation</button>
+        </div>
+      </div>
     </div>
     <div style="margin-top:28px">
       <h2 class="section-title" style="margin-bottom:8px">🗒️ Journal des annulations</h2>
