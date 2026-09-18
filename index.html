@@ -2898,29 +2898,57 @@ function drawCategory(course,cat,fmt,withParts){
   if(custom){
     // MODE FOND VAGUES : le fond a déjà logo + partenaires. Titre catégorie en haut à DROITE + tableau.
     const catTxt=(cat.nom||'').toUpperCase();
-    // titre en haut à droite, à l'opposé du logo, incliné (dynamique)
     ctx.save();
     const tx=W-(story?90:70), ty=H*(story?0.10:0.11);
     ctx.textAlign='right';
-    // largeur max autorisée pour le texte, puis on réduit la police jusqu'à ce que ça rentre
-    const maxTextW=W*(story?0.66:0.6);
+    const maxTextW=W*(story?0.66:0.60);
     let fsize=story?92:82;
     ctx.font=`900 ${fsize}px 'Saira Condensed',sans-serif`;
-    while(ctx.measureText(catTxt).width>maxTextW && fsize>34){
-      fsize-=2;
-      ctx.font=`900 ${fsize}px 'Saira Condensed',sans-serif`;
+    // 1) réduire un peu la police si ça dépasse (mais pas trop, sinon on passe sur 2 lignes)
+    const minOneLine=story?70:62;
+    while(ctx.measureText(catTxt).width>maxTextW && fsize>minOneLine){
+      fsize-=2;ctx.font=`900 ${fsize}px 'Saira Condensed',sans-serif`;
     }
-    const ctw=ctx.measureText(catTxt).width;
+    // 2) si toujours trop long, on découpe en 2 lignes (sur l'espace le plus central)
+    let lines=[catTxt];
+    if(ctx.measureText(catTxt).width>maxTextW){
+      const words=catTxt.split(' ');
+      if(words.length>1){
+        // trouver le point de coupure qui équilibre le mieux les 2 lignes
+        let best=1,bestDiff=1e9;
+        for(let k=1;k<words.length;k++){
+          const l1=words.slice(0,k).join(' '),l2=words.slice(k).join(' ');
+          const diff=Math.abs(ctx.measureText(l1).width-ctx.measureText(l2).width);
+          if(diff<bestDiff){bestDiff=diff;best=k;}
+        }
+        lines=[words.slice(0,best).join(' '),words.slice(best).join(' ')];
+      }
+      // réduire la police pour que la plus longue des 2 lignes rentre
+      while(Math.max(...lines.map(l=>ctx.measureText(l).width))>maxTextW && fsize>34){
+        fsize-=2;ctx.font=`900 ${fsize}px 'Saira Condensed',sans-serif`;
+      }
+    }
+    const ctw=Math.max(...lines.map(l=>ctx.measureText(l).width));
+    const lineH=Math.round(fsize*1.02);
     ctx.translate(tx,ty);ctx.rotate(-0.05);
-    // plaque foncée inclinée derrière le titre (hauteur adaptée à la police)
-    const cbh=Math.round(fsize*1.1), cpad=story?30:26;
+    // plaque foncée inclinée derrière le(s) titre(s)
+    const cpad=story?30:26;
+    const cbh=Math.round(fsize*1.1)+(lines.length>1?lineH:0);
+    const topY=lines.length>1?-cbh*0.60:-cbh*0.72;
     ctx.fillStyle='#0d3a4f';
     ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=14;ctx.shadowOffsetY=5;
-    roundRect(ctx,-ctw-cpad*2,-cbh*0.72,ctw+cpad*2,cbh,10);ctx.fill();
+    roundRect(ctx,-ctw-cpad*2,topY,ctw+cpad*2,cbh,10);ctx.fill();
     ctx.shadowColor='transparent';
     // liseré cyan en bas de la plaque
-    ctx.fillStyle='#5cc6e8';ctx.fillRect(-ctw-cpad*2,cbh*0.28-6,ctw+cpad*2,6);
-    ctx.fillStyle='#ffffff';ctx.fillText(catTxt,-cpad,0);
+    ctx.fillStyle='#5cc6e8';ctx.fillRect(-ctw-cpad*2,topY+cbh-6,ctw+cpad*2,6);
+    // texte (1 ou 2 lignes)
+    ctx.fillStyle='#ffffff';
+    if(lines.length>1){
+      ctx.fillText(lines[0],-cpad,-lineH*0.5+6);
+      ctx.fillText(lines[1],-cpad,lineH*0.5+2);
+    }else{
+      ctx.fillText(lines[0],-cpad,0);
+    }
     ctx.restore();
     // tableau
     let y=H*(story?0.24:0.26);
