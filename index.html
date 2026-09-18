@@ -111,6 +111,12 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .xlsx-exports{margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 .xlsx-exports .btn{border-color:var(--green);color:var(--green)}
 .xlsx-exports .btn:hover{background:var(--green);color:#0a1a24}
+.ev-export-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
+.ev-export-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 14px;cursor:pointer}
+.ev-export-row:hover{border-color:var(--accent)}
+.ev-export-row input{width:auto;flex-shrink:0}
+.ev-export-info{font-size:.92rem}
+.ev-export-info .d{color:var(--ink-dim);font-size:.85rem}
 /* Journal des annulations */
 .annul-list{display:flex;flex-direction:column;gap:8px}
 .annul-row{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
@@ -1143,10 +1149,41 @@ async function exportTravauxXlsx(){
 // 3) ÉVÉNEMENTS (inscriptions, présents/absents séparés)
 async function exportEvenementsXlsx(){
   if(!xlsxReady())return;
-  toast('Génération du fichier…');
-  const {data}=await sb.from('inscriptions').select('*, evenements(titre,date_debut)').order('created_at',{ascending:false});
+  // Récupérer la liste des événements ayant des inscriptions
+  const {data}=await sb.from('inscriptions').select('evenement_id, evenements(titre,date_debut)');
   const list=data||[];
   if(!list.length)return toast('Aucune inscription à exporter',true);
+  // compter par événement
+  const evMap={};
+  list.forEach(i=>{
+    const id=i.evenement_id||'sans';
+    if(!evMap[id])evMap[id]={id,titre:i.evenements?.titre||'Sans événement',date:i.evenements?.date_debut,n:0};
+    evMap[id].n++;
+  });
+  const events=Object.values(evMap).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  // Popup de sélection
+  openModal('Exporter des événements',`
+    <p style="color:var(--ink-dim);margin-bottom:14px">Choisis les événements à inclure dans le fichier Excel :</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" onclick="evExportCheckAll(true)">Tout cocher</button>
+      <button class="btn btn-ghost btn-sm" onclick="evExportCheckAll(false)">Tout décocher</button>
+    </div>
+    <div class="ev-export-list">
+      ${events.map(e=>`<label class="ev-export-row">
+        <input type="checkbox" class="ev-export-cb" value="${e.id}" checked>
+        <span class="ev-export-info"><strong>${esc(e.titre)}</strong>${e.date?`<span class="d"> · ${frDate(e.date)}</span>`:''}<span class="d"> — ${e.n} inscrit${e.n>1?'s':''}</span></span>
+      </label>`).join('')}
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="doExportEvenements()">📥 Générer le fichier Excel</button>`);
+}
+function evExportCheckAll(v){$$('.ev-export-cb').forEach(cb=>{cb.checked=v;});}
+async function doExportEvenements(){
+  const ids=$$('.ev-export-cb').filter(cb=>cb.checked).map(cb=>cb.value);
+  if(!ids.length)return toast('Coche au moins un événement',true);
+  closeModal();toast('Génération du fichier…');
+  const {data}=await sb.from('inscriptions').select('*, evenements(titre,date_debut)').order('created_at',{ascending:false});
+  let list=(data||[]).filter(i=>ids.includes(i.evenement_id||'sans'));
+  if(!list.length)return toast('Aucune inscription pour cette sélection',true);
   const ligne=i=>{
     const rep=(i.reponses&&typeof i.reponses==='object')?i.reponses:{};
     const base={
@@ -1154,7 +1191,6 @@ async function exportEvenementsXlsx(){
       'Date événement':frDate(i.evenements?.date_debut),
       Nom:i.nom||rep['Nom / Prénom']||'',
     };
-    // ajouter toutes les réponses du formulaire
     Object.entries(rep).forEach(([k,v])=>{ if(k!=='Nom / Prénom') base[k]=v; });
     return base;
   };
@@ -2866,11 +2902,18 @@ function drawCategory(course,cat,fmt,withParts){
     ctx.save();
     const tx=W-(story?90:70), ty=H*(story?0.10:0.11);
     ctx.textAlign='right';
-    ctx.font=`900 ${story?92:82}px 'Saira Condensed',sans-serif`;
-    const ctw=Math.min(ctx.measureText(catTxt).width,W*0.5);
+    // largeur max autorisée pour le texte, puis on réduit la police jusqu'à ce que ça rentre
+    const maxTextW=W*(story?0.66:0.6);
+    let fsize=story?92:82;
+    ctx.font=`900 ${fsize}px 'Saira Condensed',sans-serif`;
+    while(ctx.measureText(catTxt).width>maxTextW && fsize>34){
+      fsize-=2;
+      ctx.font=`900 ${fsize}px 'Saira Condensed',sans-serif`;
+    }
+    const ctw=ctx.measureText(catTxt).width;
     ctx.translate(tx,ty);ctx.rotate(-0.05);
-    // plaque foncée inclinée derrière le titre
-    const cbh=story?100:90, cpad=story?30:26;
+    // plaque foncée inclinée derrière le titre (hauteur adaptée à la police)
+    const cbh=Math.round(fsize*1.1), cpad=story?30:26;
     ctx.fillStyle='#0d3a4f';
     ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=14;ctx.shadowOffsetY=5;
     roundRect(ctx,-ctw-cpad*2,-cbh*0.72,ctw+cpad*2,cbh,10);ctx.fill();
