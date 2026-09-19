@@ -107,6 +107,8 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .insc-filters button:hover{border-color:var(--accent);color:var(--ink)}
 .insc-filters button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
 .insc-filters button.insc-export{background:var(--surface-2);border-color:var(--green);color:var(--green);margin-left:auto}
+.insc-filters button.insc-mail{background:var(--surface-2);border-color:var(--accent);color:var(--accent)}
+.insc-filters button.insc-mail:hover{background:var(--accent);color:#0a1a24}
 .insc-filters button.insc-export:hover{background:var(--green);color:#0a1a24}
 .xlsx-exports{margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 .xlsx-exports .btn{border-color:var(--green);color:var(--green)}
@@ -2195,9 +2197,51 @@ function renderInscFilters(){
     counts[t]=(counts[t]||0)+1;
   });
   const events=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  // compter les présents avec email pour l'événement filtré
+  let mailBtn='';
+  if(_inscFilter!=='tous'){
+    const presentsAvecMail=_inscCache.filter(i=>(i.evenements?.titre||'Sans événement')===_inscFilter && i.reponses?.['Présence']!=='Absent·e' && trouverEmailInsc(i)).length;
+    if(presentsAvecMail>0){
+      mailBtn=`<button class="insc-mail" onclick="openMailInscrits()">✉️ Mail aux présents (${presentsAvecMail})</button>`;
+    }
+  }
   bar.innerHTML=`<button class="${_inscFilter==='tous'?'active':''}" onclick="setInscFilter('tous')">Tous (${_inscCache.length})</button>`+
     events.map(([t,n])=>`<button class="${_inscFilter===t?'active':''}" onclick="setInscFilter('${esc(t).replace(/'/g,"\\'")}')">${esc(t)} (${n})</button>`).join('')+
-    `<button class="insc-export" onclick="exportInscriptions()">🖨️ Exporter / imprimer</button>`;
+    `<button class="insc-export" onclick="exportInscriptions()">🖨️ Exporter / imprimer</button>`+mailBtn;
+}
+// Trouve l'email d'un inscrit (champ email ou dans les réponses)
+function trouverEmailInsc(i){
+  if(i.email&&/@/.test(i.email))return i.email;
+  const rep=i.reponses&&typeof i.reponses==='object'?i.reponses:{};
+  for(const v of Object.values(rep)){
+    if(typeof v==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()))return v.trim();
+  }
+  return null;
+}
+function openMailInscrits(){
+  if(_inscFilter==='tous')return toast('Choisis d\'abord un événement',true);
+  const presents=_inscCache.filter(i=>(i.evenements?.titre||'Sans événement')===_inscFilter && i.reponses?.['Présence']!=='Absent·e');
+  const emails=[...new Set(presents.map(trouverEmailInsc).filter(Boolean))];
+  if(!emails.length)return toast('Aucun email disponible',true);
+  openModal('✉️ Mail aux présents — '+_inscFilter,`
+    <p style="color:var(--ink-dim);font-size:.9rem;margin-bottom:14px">${emails.length} destinataire${emails.length>1?'s':''} (présents avec email). Ils recevront ce message par mail, chacun individuellement (adresses masquées).</p>
+    ${fld('Objet du mail','mail-sujet','Info — '+_inscFilter)}
+    ${ar('Message','mail-corps','')}
+    <p style="color:var(--ink-dim);font-size:.8rem;margin:-6px 0 14px">Le nom de l'événement et la signature du club sont ajoutés automatiquement.</p>
+    <button class="btn btn-primary" id="mailSendBtn" onclick="sendMailInscrits()">📤 Envoyer le mail</button>`);
+}
+let _mailEmailsTmp=[];
+async function sendMailInscrits(){
+  const sujet=$('#mail-sujet').value.trim();
+  const corps=$('#mail-corps').value.trim();
+  if(!sujet||!corps)return toast('Objet et message obligatoires',true);
+  const presents=_inscCache.filter(i=>(i.evenements?.titre||'Sans événement')===_inscFilter && i.reponses?.['Présence']!=='Absent·e');
+  const emails=[...new Set(presents.map(trouverEmailInsc).filter(Boolean))];
+  if(!emails.length)return toast('Aucun email',true);
+  const btn=$('#mailSendBtn');if(btn){btn.disabled=true;btn.textContent='Envoi…';}
+  const {data,error}=await sb.functions.invoke('send-group-mail',{body:{emails,sujet,corps,evenement:_inscFilter}});
+  if(error){if(btn){btn.disabled=false;btn.textContent='📤 Envoyer le mail';}return toast('Erreur : '+error.message,true);}
+  closeModal();toast(`✓ Mail envoyé à ${emails.length} personne${emails.length>1?'s':''}`);
 }
 function setInscFilter(f){_inscFilter=f;renderInscFilters();renderInscriptions();}
 function exportInscriptions(){
@@ -3229,27 +3273,59 @@ function renderInscField(f,i){
   return `<div class="field"><label>${esc(f.label)}${req}</label><input id="${id}" type="${t}"></div>`;
 }
 async function submitInscription(eventId){
+  const btn=$('#insBtn');
+  if(btn){if(btn.disabled)return;btn.disabled=true;btn.dataset.txt=btn.textContent;btn.textContent='Envoi…';}
+  const _reactiver=()=>{if(btn){btn.disabled=false;btn.textContent=btn.dataset.txt||'Valider';}};
   const reponses={};
   const absent=$('#insf-absent')?.checked;
   for(let i=0;i<_inscChamps.length;i++){
     const f=_inscChamps[i];const el=$('#insf-'+i);if(!el)continue;
     let val=f.type==='checkbox'?(el.checked?'Oui':'Non'):el.value.trim();
     // si absent, on n'exige pas les champs obligatoires sauf le nom
-    if(!absent&&f.required&&f.type!=='checkbox'&&!val)return toast(`« ${f.label} » est obligatoire`,true);
-    if(absent&&f.key==='nom'&&!val)return toast('Ton nom est requis',true);
+    if(!absent&&f.required&&f.type!=='checkbox'&&!val){_reactiver();return toast(`« ${f.label} » est obligatoire`,true);}
+    if(absent&&f.key==='nom'&&!val){_reactiver();return toast('Ton nom est requis',true);}
     reponses[f.label]=val;
   }
   reponses['Présence']=absent?'Absent·e':'Présent·e';
   if(absent){const proc=$('#insf-procuration')?.value.trim();if(proc)reponses['Procuration à']=proc;}
   const nomChamp=_inscChamps.find(f=>f.key==='nom');
+  const nomVal=nomChamp?reponses[nomChamp.label]:null;
+  const licChamp=_inscChamps.find(f=>f.key==='licence');
+  const licVal=licChamp?reponses[licChamp.label]:null;
+  // Vérifier les doublons : même nom OU même licence déjà inscrit à cet événement
+  const {data:dejaInscrits}=await sb.from('inscriptions').select('nom,reponses').eq('evenement_id',eventId);
+  if(dejaInscrits&&dejaInscrits.length){
+    const norm=s=>(s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
+    const nomN=norm(nomVal), licN=norm(licVal);
+    const doublon=dejaInscrits.some(i=>{
+      const iNom=norm(i.nom);
+      const iLic=norm(licChamp&&i.reponses?i.reponses[licChamp.label]:'');
+      const memeNom=nomN&&iNom&&iNom===nomN;
+      const memeLic=licN&&iLic&&iLic===licN;
+      return memeNom||memeLic;
+    });
+    if(doublon){
+      _reactiver();
+      openModal('Déjà inscrit·e',`
+        <div style="text-align:center;padding:8px 0">
+          <p style="font-size:2rem;margin:0 0 10px">✋</p>
+          <p style="font-weight:700;margin:0 0 8px">Tu es déjà inscrit·e à cet événement</p>
+          <p style="color:var(--ink-dim);font-size:.92rem;line-height:1.6">Une inscription existe déjà à ton nom ou avec ta licence.<br><br>
+          Pour toute <strong>modification</strong> ou <strong>annulation</strong>, contacte-nous par mail à<br>
+          <a href="mailto:mcmorfalous@gmail.com" style="color:var(--accent)">mcmorfalous@gmail.com</a></p>
+          <button class="btn btn-primary btn-sm" style="margin-top:16px" onclick="closeModal()">J'ai compris</button>
+        </div>`);
+      return;
+    }
+  }
   const row={evenement_id:eventId,reponses,
-    nom:nomChamp?reponses[nomChamp.label]:null,
+    nom:nomVal,
     nb_personnes:absent?0:(parseInt(reponses[_inscChamps.find(f=>f.key==='nb_personnes')?.label])||1),
     email:reponses[_inscChamps.find(f=>f.key==='email')?.label]||null,
     telephone:reponses[_inscChamps.find(f=>f.key==='telephone')?.label]||null,
     commentaire:reponses[_inscChamps.find(f=>f.key==='commentaire')?.label]||null};
   const {error}=await sb.from('inscriptions').insert(row);
-  if(error)return toast(error.message,true);
+  if(error){_reactiver();return toast(error.message,true);}
   closeModal();toast(absent?'Merci, on note ton absence':'Inscription confirmée ! 🏁');
 }
 
