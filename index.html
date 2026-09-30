@@ -121,6 +121,21 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .lightbox .lb-prev:hover,.lightbox .lb-next:hover{background:var(--accent);color:#0a1a24}
 .lightbox .lb-caption{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;padding:8px 18px;border-radius:20px;font-size:.9rem;max-width:80vw;text-align:center}
 @media(max-width:600px){.lightbox .lb-prev,.lightbox .lb-next{width:44px;height:44px;font-size:1.7rem}.lightbox .lb-close{top:10px;right:10px}}
+/* ===== SONDAGES ===== */
+.sond-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:20px;max-width:640px}
+.sond-q{font-family:var(--font-disp);font-weight:800;font-size:1.3rem;color:var(--ink);margin-bottom:18px;line-height:1.2}
+.sond-multi{font-family:Inter,sans-serif;font-weight:400;font-size:.8rem;color:var(--ink-dim);text-transform:none}
+.sond-opt{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin-bottom:8px;cursor:pointer;transition:all .12s;width:100%;text-align:left;color:var(--ink);font-size:1rem}
+.sond-opt:hover{border-color:var(--accent);background:var(--surface-2)}
+.sond-opt-btn{font-family:inherit}
+.sond-opt input{width:auto;flex-shrink:0}
+.sond-res{margin-bottom:12px}
+.sond-res-top{display:flex;justify-content:space-between;font-size:.95rem;margin-bottom:5px;color:var(--ink)}
+.sond-res-top strong{color:var(--accent);font-family:var(--font-disp)}
+.sond-bar{height:12px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+.sond-bar div{height:100%;background:linear-gradient(90deg,var(--accent),#2a7f9e);border-radius:99px;transition:width .4s ease}
+.sond-total{color:var(--ink-dim);font-size:.85rem;margin-top:14px}
+.sond-admin{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .insc-filters button.insc-export:hover{background:var(--green);color:#0a1a24}
 .xlsx-exports{margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 .xlsx-exports .btn{border-color:var(--green);color:var(--green)}
@@ -608,6 +623,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
           <button data-page="histoire" onclick="go('histoire')">🐺 Notre histoire</button>
           <button data-page="licence" onclick="go('licence')">📋 Licence</button>
           <button data-page="partenaires" onclick="go('partenaires')">🤝 Partenaires</button>
+          <button data-page="sondages" onclick="go('sondages')">🗳️ Sondages</button>
         </div>
       </div>
       <button onclick="openExternal('lien_prono')">🏆 Prono ↗</button>
@@ -909,6 +925,15 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <div id="ideesRecuesList"><div class="loading">Chargement…</div></div>
   </div>
   <p style="margin-top:40px;color:var(--ink-dim);font-size:.85rem">Membre du bureau ? L'accès se trouve en bas de page.</p>
+</section>
+
+<!-- SONDAGES -->
+<section class="page" id="page-sondages">
+  <div class="eyebrow">Donne ton avis</div>
+  <h1 class="title">Sondages</h1>
+  <p class="lead" style="margin-bottom:24px">Participe aux décisions du club en votant !</p>
+  <button class="btn btn-primary admin-only btn-sm" style="margin-bottom:24px" onclick="openSondageForm()">+ Nouveau sondage</button>
+  <div id="sondagesList"><div class="loading">Chargement…</div></div>
 </section>
 
 <!-- ADMIN -->
@@ -1411,8 +1436,102 @@ const loaders={
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
   ouverture:loadOuverture, travaux:loadTravaux, participer:loadParticiper, admin:loadAdmin,
-  mentions:loadMentions, boutique:loadBoutique,
+  mentions:loadMentions, boutique:loadBoutique, sondages:loadSondages,
 };
+/* ============ SONDAGES ============ */
+// clé de vote par appareil (localStorage) pour empêcher les votes multiples
+function aDejaVote(sondageId){
+  try{return (JSON.parse(localStorage.getItem('mcm_votes')||'{}'))[sondageId]===true;}catch(_){return false;}
+}
+function marquerVote(sondageId){
+  try{const v=JSON.parse(localStorage.getItem('mcm_votes')||'{}');v[sondageId]=true;localStorage.setItem('mcm_votes',JSON.stringify(v));}catch(_){}
+}
+async function loadSondages(){
+  const c=$('#sondagesList');if(!c)return;
+  c.innerHTML='<div class="loading">Chargement…</div>';
+  const {data:sondages,error}=await sb.from('sondages').select('*').order('created_at',{ascending:false});
+  if(error){c.innerHTML=emptyState('Erreur : '+error.message);return;}
+  if(!sondages||!sondages.length){c.innerHTML=emptyState(isAdmin?'Aucun sondage. Crée le premier !':'Aucun sondage pour le moment.');return;}
+  const {data:votes}=await sb.from('sondages_votes').select('sondage_id,choix');
+  const parSondage={};(votes||[]).forEach(v=>{(parSondage[v.sondage_id]=parSondage[v.sondage_id]||[]).push(v.choix);});
+  c.innerHTML=sondages.map(s=>renderSondage(s,parSondage[s.id]||[])).join('');
+}
+function renderSondage(s,votes){
+  const options=Array.isArray(s.options)?s.options:[];
+  const total=votes.length;
+  const counts={};options.forEach(o=>counts[o]=0);votes.forEach(v=>{if(counts[v]!=null)counts[v]++;});
+  const dejaVote=aDejaVote(s.id)||!s.ouvert;
+  let inner;
+  if(dejaVote){
+    // afficher les résultats
+    inner=options.map(o=>{
+      const n=counts[o]||0, pct=total?Math.round(n/total*100):0;
+      return `<div class="sond-res">
+        <div class="sond-res-top"><span>${esc(o)}</span><strong>${pct}% (${n})</strong></div>
+        <div class="sond-bar"><div style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+    inner+=`<p class="sond-total">${total} vote${total>1?'s':''}${!s.ouvert?' · sondage clôturé':' · tu as voté ✓'}</p>`;
+  }else{
+    // afficher les options à cocher/cliquer
+    if(s.multi){
+      inner=options.map((o,i)=>`<label class="sond-opt"><input type="checkbox" class="sond-cb-${s.id}" value="${esc(o)}"> <span>${esc(o)}</span></label>`).join('')+
+        `<button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="voterMulti('${s.id}')">Voter</button>`;
+    }else{
+      inner=options.map(o=>`<button class="sond-opt sond-opt-btn" onclick="voter('${s.id}','${esc(o).replace(/'/g,"\\'")}')"><span>${esc(o)}</span></button>`).join('');
+    }
+  }
+  return `<div class="sond-card">
+    <div class="sond-q">${esc(s.question)}${s.multi?' <span class="sond-multi">(plusieurs choix)</span>':''}</div>
+    ${inner}
+    ${isAdmin?`<div class="sond-admin">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSondageOuvert('${s.id}',${s.ouvert})">${s.ouvert?'🔒 Clôturer':'🔓 Rouvrir'}</button>
+      <button class="btn btn-danger btn-sm" onclick="delSondage('${s.id}')">✕ Supprimer</button>
+    </div>`:''}
+  </div>`;
+}
+async function voter(sondageId,choix){
+  if(aDejaVote(sondageId))return toast('Tu as déjà voté',true);
+  const {error}=await sb.from('sondages_votes').insert({sondage_id:sondageId,choix,votant:_visiteurId});
+  if(error)return toast(error.message,true);
+  marquerVote(sondageId);toast('Merci pour ton vote ! 🗳️');loadSondages();
+}
+async function voterMulti(sondageId){
+  if(aDejaVote(sondageId))return toast('Tu as déjà voté',true);
+  const choix=$$('.sond-cb-'+sondageId).filter(cb=>cb.checked).map(cb=>cb.value);
+  if(!choix.length)return toast('Choisis au moins une option',true);
+  const rows=choix.map(c=>({sondage_id:sondageId,choix:c,votant:_visiteurId}));
+  const {error}=await sb.from('sondages_votes').insert(rows);
+  if(error)return toast(error.message,true);
+  marquerVote(sondageId);toast('Merci pour ton vote ! 🗳️');loadSondages();
+}
+function openSondageForm(){
+  openModal('Nouveau sondage',`
+    ${fld('Question','sond-q','','text','Ex : Quelle date pour le repas ?')}
+    <div class="field"><label>Options (une par ligne)</label><textarea id="sond-opts" placeholder="Samedi 12&#10;Dimanche 13&#10;Peu importe" style="min-height:120px"></textarea></div>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input type="checkbox" id="sond-multi" style="width:auto"> Autoriser plusieurs réponses par personne</label>
+    <button class="btn btn-primary" onclick="saveSondage()">Créer le sondage</button>`);
+}
+async function saveSondage(){
+  const question=$('#sond-q').value.trim();
+  const options=$('#sond-opts').value.split('\n').map(o=>o.trim()).filter(Boolean);
+  if(!question)return toast('La question est obligatoire',true);
+  if(options.length<2)return toast('Ajoute au moins 2 options',true);
+  const {error}=await sb.from('sondages').insert({question,options,multi:$('#sond-multi').checked,ouvert:true});
+  if(error)return toast(error.message,true);
+  closeModal();toast('Sondage créé ✓');loadSondages();
+}
+async function toggleSondageOuvert(id,ouvert){
+  const {error}=await sb.from('sondages').update({ouvert:!ouvert}).eq('id',id);
+  if(error)return toast(error.message,true);
+  toast(ouvert?'Sondage clôturé':'Sondage rouvert');loadSondages();
+}
+async function delSondage(id){
+  if(!confirm('Supprimer ce sondage et tous ses votes ?'))return;
+  const {error}=await sb.from('sondages').delete().eq('id',id);
+  if(error)return toast(error.message,true);
+  toast('Supprimé');loadSondages();
+}
 async function loadBoutique(){
   await loadConfig();
   const c=$('#boutiqueContent');if(!c)return;
