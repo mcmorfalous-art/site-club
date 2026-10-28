@@ -2464,6 +2464,18 @@ function renderInscriptions(){
 }
 
 /* ---- Actus ---- */
+/* Fusionne l'ancien champ pdf_url (1 seul PDF) et le nouveau champ pdfs (liste).
+   Renvoie un tableau [{nom,url}, …] dédoublonné par url. */
+function actuPdfs(a){
+  const out=[]; const seen=new Set();
+  let list=a.pdfs;
+  if(typeof list==='string'){ try{list=JSON.parse(list||'[]');}catch(e){list=[];} }
+  (Array.isArray(list)?list:[]).forEach(p=>{
+    if(p&&p.url&&!seen.has(p.url)){seen.add(p.url);out.push({nom:(p.nom||'Document').trim()||'Document',url:p.url});}
+  });
+  if(a.pdf_url&&!seen.has(a.pdf_url)){seen.add(a.pdf_url);out.push({nom:'Document',url:a.pdf_url});}
+  return out;
+}
 function actuCard(a){
   const catLabels={actualite:'Actu',bureau:'Bureau',travaux:'Travaux',ouverture:'Ouverture'};
   const cat=a.categorie&&catLabels[a.categorie]?a.categorie:null;
@@ -2474,7 +2486,7 @@ function actuCard(a){
       <span class="card-date">${fmtDate(a.date_publi)}</span>
       <h3>${esc(a.titre)}</h3>
       <p>${esc(a.resume||(a.contenu||'').slice(0,140))}</p>
-      ${a.pdf_url?`<span class="pdf-badge">📄 PDF joint</span>`:''}
+      ${(()=>{const n=actuPdfs(a).length;return n?`<span class="pdf-badge">📄 ${n} PDF joint${n>1?'s':''}</span>`:'';})()}
       <div class="row-actions" style="margin-top:auto;padding-top:10px">
         <button class="btn btn-ghost btn-sm" onclick="openActu('${a.id}')">Lire</button>
         <button class="btn btn-ghost btn-sm admin-only" onclick="openActuForm('${a.id}')">✎</button>
@@ -2511,7 +2523,7 @@ async function openActu(id){
     ${a.image_url?`<img src="${esc(a.image_url)}" style="border-radius:6px;margin-bottom:16px" alt="">`:''}
     <p style="color:var(--accent);font-family:var(--font-disp);text-transform:uppercase;font-size:.85rem;margin-bottom:12px">${fmtDate(a.date_publi)}</p>
     <div style="white-space:pre-wrap;line-height:1.7">${esc(a.contenu||a.resume||'')}</div>
-    ${a.pdf_url?`<button class="btn btn-primary btn-sm" style="margin-top:18px" onclick="openPdf('${esc(a.pdf_url)}','${esc(a.titre).replace(/'/g,"\\'")}')">📄 Ouvrir le PDF</button>`:''}`);
+    ${(()=>{const docs=actuPdfs(a);if(!docs.length)return'';return `<div style="margin-top:18px;display:flex;flex-direction:column;gap:8px">`+docs.map(d=>`<button class="btn btn-primary btn-sm" onclick="openPdf('${esc(d.url)}','${esc(d.nom).replace(/'/g,"\\'")}')">📄 ${esc(d.nom)}</button>`).join('')+`</div>`;})()}`);
 }
 /* Visionneuse PDF en popup */
 function openPdf(url,titre){
@@ -3677,13 +3689,40 @@ async function openActuForm(id){
     ${ar('Contenu','ac-contenu',a.contenu)}
     ${fileField('Image (optionnel)','ac-imgfile','ac-img','image/*','articles',a.image_url)}
     ${focusField('Cadrage de l\'image','ac-imgpos',a.image_pos)}
-    ${fileField('PDF joint (compte-rendu)','ac-pdffile','ac-pdf','application/pdf','pdf',a.pdf_url)}
+    <div class="field"><label>PDF joints (comptes-rendus, documents…)</label>
+      <div id="ac-pdflist"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addActuPdfRow()">+ Ajouter un PDF</button>
+    </div>
     <div class="field"><label>Catégorie</label><select id="ac-cat">${['actualite','bureau','travaux','ouverture'].map(c=>`<option ${a.categorie===c?'selected':''}>${c}</option>`).join('')}</select></div>
     <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input type="checkbox" id="ac-pub" ${a.publie!==false?'checked':''} style="width:auto"> Publié</label>
     <button class="btn btn-primary" onclick="saveActu('${id||''}')">Enregistrer</button>`);
+  // pré-remplit la liste des PDF existants (ancien pdf_url inclus via actuPdfs)
+  _actuPdfRows=actuPdfs(a);
+  renderActuPdfRows();
+}
+/* ===== Gestion de la liste de PDF dans le formulaire actu ===== */
+let _actuPdfRows=[];
+function renderActuPdfRows(){
+  const cont=$('#ac-pdflist'); if(!cont)return;
+  if(!_actuPdfRows.length){cont.innerHTML='<small style="color:var(--ink-dim);display:block;margin-bottom:8px">Aucun PDF pour l\'instant.</small>';return;}
+  cont.innerHTML=_actuPdfRows.map((d,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <input type="text" value="${esc(d.nom||'')}" placeholder="Nom affiché (ex. Compte-rendu)" oninput="_actuPdfRows[${i}].nom=this.value" style="flex:1;min-width:140px">
+      <input id="ac-pdffile-${i}" type="file" accept="application/pdf" style="display:none" onchange="handleActuPdfUpload(${i},this)">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('ac-pdffile-${i}').click()">${d.url?'Remplacer':'Choisir le fichier'}</button>
+      ${d.url?'<span style="color:var(--ok,#4caf50);font-size:.8rem">✓</span>':''}
+      <button type="button" class="btn btn-danger btn-sm" onclick="_actuPdfRows.splice(${i},1);renderActuPdfRows()">✕</button>
+    </div>`).join('');
+}
+function addActuPdfRow(){_actuPdfRows.push({nom:'',url:''});renderActuPdfRows();}
+async function handleActuPdfUpload(i,inp){
+  if(!inp.files||!inp.files[0])return;
+  const url=await uploadFile(inp.files[0],'pdf');
+  if(url){_actuPdfRows[i].url=url;if(!_actuPdfRows[i].nom)_actuPdfRows[i].nom=inp.files[0].name.replace(/\.pdf$/i,'');renderActuPdfRows();toast('PDF ajouté');}
 }
 async function saveActu(id){
-  const p={titre:$('#ac-titre').value.trim(),resume:$('#ac-resume').value.trim()||null,contenu:$('#ac-contenu').value.trim()||null,image_url:$('#ac-img').value.trim()||null,image_pos:$('#ac-imgpos')?.value||'center',pdf_url:$('#ac-pdf').value.trim()||null,categorie:$('#ac-cat').value,publie:$('#ac-pub').checked};
+  const pdfs=(_actuPdfRows||[]).filter(d=>d.url).map(d=>({nom:(d.nom||'Document').trim()||'Document',url:d.url}));
+  const p={titre:$('#ac-titre').value.trim(),resume:$('#ac-resume').value.trim()||null,contenu:$('#ac-contenu').value.trim()||null,image_url:$('#ac-img').value.trim()||null,image_pos:$('#ac-imgpos')?.value||'center',pdfs:pdfs,pdf_url:null,categorie:$('#ac-cat').value,publie:$('#ac-pub').checked};
   if(!p.titre)return toast('Titre requis',true);
   const {error}=id?await sb.from('actualites').update(p).eq('id',id):await sb.from('actualites').insert(p);
   if(error)return toast(error.message,true);
