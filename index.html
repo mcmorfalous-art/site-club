@@ -645,6 +645,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
           <button data-page="actualites" onclick="go('actualites')">📰 Actualités</button>
           <button data-page="histoire" onclick="go('histoire')">🐺 Notre histoire</button>
           <button data-page="licence" onclick="go('licence')">📋 Licence</button>
+          <button data-page="benevoles" onclick="go('benevoles')">🙋 Bénévoles</button>
           <button data-page="partenaires" onclick="go('partenaires')">🤝 Partenaires</button>
           <button data-page="sondages" onclick="go('sondages')">🗳️ Sondages</button>
         </div>
@@ -928,6 +929,13 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <h1 class="title">Prendre sa licence</h1>
   <div id="licenceContent" style="margin-top:24px;max-width:70ch"><div class="loading">Chargement…</div></div>
   <button class="btn btn-ghost admin-only btn-sm" style="margin-top:20px" onclick="openPageForm('prise-licence','Prendre sa licence')">Modifier cette page</button>
+</section>
+
+<!-- BENEVOLES -->
+<section class="page" id="page-benevoles">
+  <div class="eyebrow">Donner un coup de main</div>
+  <h1 class="title">Devenir bénévole</h1>
+  <div id="benevolesContent" style="margin-top:20px"><div class="loading">Chargement…</div></div>
 </section>
 
 <!-- PARTICIPER -->
@@ -1458,7 +1466,7 @@ const loaders={
   accueil:loadHome, calendrier:loadCalendar, actualites:loadActus,
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
-  ouverture:loadOuverture, travaux:loadTravaux, participer:loadParticiper, admin:loadAdmin,
+  ouverture:loadOuverture, travaux:loadTravaux, participer:loadParticiper, admin:loadAdmin, benevoles:loadBenevoles,
   mentions:loadMentions, boutique:loadBoutique, sondages:loadSondages,
 };
 /* ============ SONDAGES ============ */
@@ -2461,6 +2469,287 @@ function renderInscriptions(){
     const titre=i.nom||(rep?Object.values(rep)[0]:'')||'—';
     return `<div class="admin-list-row"><div class="info"><strong>${esc(titre)}</strong><small style="color:var(--accent)">${esc(i.evenements?.titre||'—')}</small>${detail}</div><button class="btn btn-danger btn-sm" onclick="delRow('inscriptions','${i.id}','calendrier')">✕</button></div>`;
   }).join(''):emptyState('Aucune inscription pour ce filtre.');
+}
+
+/* ============================================================
+   MODULE BÉNÉVOLES
+   ============================================================ */
+let _benCreneaux=[], _benPostes=[], _benInscrs=[];
+
+async function loadBenevoles(){
+  const cont=$('#benevolesContent'); if(!cont)return;
+  cont.innerHTML='<div class="loading">Chargement…</div>';
+  // créneaux actifs + postes actifs
+  const [{data:cr},{data:po}]=await Promise.all([
+    sb.from('benevoles_creneaux').select('*').order('ordre'),
+    sb.from('benevoles_postes').select('*').order('ordre')
+  ]);
+  _benCreneaux=(cr||[]).filter(c=>c.actif!==false);
+  _benPostes=(po||[]);
+  const postesActifs=_benPostes.filter(p=>p.actif!==false);
+
+  // ----- Formulaire public d'inscription -----
+  let html=`
+  <div class="card" style="max-width:640px;margin-bottom:28px">
+    <div class="card-body">
+      <p style="margin-bottom:16px">Merci de faire vivre notre épreuve ! Remplis ce formulaire pour t'inscrire comme bénévole : choisis ton poste et coche les créneaux où tu es disponible.</p>
+      <div class="field"><label>Nom *</label><input id="ben-nom" type="text" placeholder="Ton nom"></div>
+      <div class="field"><label>Prénom *</label><input id="ben-prenom" type="text" placeholder="Ton prénom"></div>
+      <div class="field"><label>E-mail</label><input id="ben-email" type="email" placeholder="ton@mail.fr"></div>
+      <div class="field"><label>Téléphone</label><input id="ben-tel" type="tel" placeholder="06 ..."></div>
+      <div class="field"><label>Poste souhaité *</label>
+        <select id="ben-poste">${postesActifs.map(p=>`<option value="${p.id}">${esc(p.nom)}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Mes disponibilités *</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          ${_benCreneaux.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>Commentaire (optionnel)</label><textarea id="ben-comm" placeholder="Une précision ?"></textarea></div>
+      <button class="btn btn-primary" onclick="submitBenevole()">M'inscrire comme bénévole</button>
+    </div>
+  </div>`;
+
+  // ----- Partie ADMIN -----
+  if(isAdmin){
+    const {data:ins}=await sb.from('benevoles_inscriptions').select('*').order('created_at',{ascending:false});
+    _benInscrs=ins||[];
+    const nAtt=_benInscrs.filter(i=>i.statut!=='valide').length;
+    html+=`
+    <div class="admin-only" style="border-top:2px solid var(--accent);padding-top:20px">
+      <h2 class="section-title">Gestion des bénévoles <span style="font-size:.6em;color:var(--ink-dim)">(admin)</span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0">
+        <button class="btn btn-ghost btn-sm" onclick="openBenPostesForm()">⚙️ Postes & besoins</button>
+        <button class="btn btn-ghost btn-sm" onclick="openBenCreneauxForm()">🗓️ Créneaux</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportBenevolesTableau()">⬇️ Export tableau complet</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportBenevolesContacts()">⬇️ Export contacts (Google)</button>
+      </div>
+      <p style="color:var(--ink-dim);margin-bottom:12px">${_benInscrs.length} inscription(s) · ${nAtt} en attente de validation</p>
+      <div id="benAdminList"></div>
+    </div>`;
+  }
+  cont.innerHTML=html;
+  if(isAdmin)renderBenAdminList();
+}
+
+function benCrLabel(id){const c=_benCreneaux.find(x=>x.id===id);return c?c.label:id;}
+
+async function submitBenevole(){
+  const nom=$('#ben-nom').value.trim(), prenom=$('#ben-prenom').value.trim();
+  const email=$('#ben-email').value.trim()||null, tel=$('#ben-tel').value.trim()||null;
+  const posteId=$('#ben-poste').value;
+  const creneaux=$$('.ben-cr').filter(c=>c.checked).map(c=>c.value);
+  const comm=$('#ben-comm').value.trim()||null;
+  if(!nom||!prenom)return toast('Nom et prénom requis',true);
+  if(!creneaux.length)return toast('Coche au moins un créneau',true);
+  const poste=_benPostes.find(p=>p.id===posteId);
+  const {error}=await sb.from('benevoles_inscriptions').insert({
+    nom,prenom,email,telephone:tel,poste_id:posteId,poste_nom:poste?poste.nom:null,
+    creneaux,commentaire:comm,statut:'en_attente'
+  });
+  if(error)return toast(error.message,true);
+  openModal('Merci !',`<p style="line-height:1.7">Ton inscription comme bénévole a bien été enregistrée. Le bureau la validera prochainement${email?' et tu recevras un mail de confirmation':''}.</p><p style="margin-top:12px">Un grand merci pour ton engagement ! 🤝</p>`);
+  // reset
+  ['ben-nom','ben-prenom','ben-email','ben-tel','ben-comm'].forEach(id=>{const e=$('#'+id);if(e)e.value='';});
+  $$('.ben-cr').forEach(c=>c.checked=false);
+  if(isAdmin)loadBenevoles();
+}
+
+/* ---- Admin : liste des inscriptions ---- */
+function renderBenAdminList(){
+  const cont=$('#benAdminList'); if(!cont)return;
+  if(!_benInscrs.length){cont.innerHTML=emptyState('Aucune inscription pour le moment.');return;}
+  // groupé par poste
+  const byPoste={};
+  _benInscrs.forEach(i=>{const k=i.poste_nom||'(sans poste)';(byPoste[k]=byPoste[k]||[]).push(i);});
+  cont.innerHTML=Object.keys(byPoste).sort().map(poste=>`
+    <h3 style="margin:18px 0 8px;color:var(--accent)">${esc(poste)} <span style="font-size:.8em;color:var(--ink-dim)">(${byPoste[poste].length})</span></h3>
+    ${byPoste[poste].map(benAdminRow).join('')}
+  `).join('');
+}
+function benAdminRow(i){
+  const valide=i.statut==='valide';
+  const crx=(Array.isArray(i.creneaux)?i.creneaux:[]).map(benCrLabel).join(', ')||'—';
+  return `<div class="card" style="margin-bottom:8px"><div class="card-body" style="padding:12px 14px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div>
+        <strong>${esc(i.nom)} ${esc(i.prenom)}</strong>
+        ${valide?'<span style="color:#4caf50;font-size:.8rem;margin-left:6px">✓ validé</span>':'<span style="color:var(--hot);font-size:.8rem;margin-left:6px">en attente</span>'}
+        <div style="font-size:.85rem;color:var(--ink-dim);margin-top:4px">
+          ${i.email?`✉ ${esc(i.email)} · `:''}${i.telephone?`📞 ${esc(i.telephone)}`:''}
+        </div>
+        <div style="font-size:.85rem;margin-top:4px">🗓️ ${esc(crx)}</div>
+        ${i.commentaire?`<div style="font-size:.82rem;color:var(--ink-dim);margin-top:4px">💬 ${esc(i.commentaire)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${valide?'':`<button class="btn btn-primary btn-sm" onclick="validerBenevole('${i.id}')">✓ Valider${i.email?' + mail':''}</button>`}
+        <button class="btn btn-danger btn-sm" onclick="delBenevole('${i.id}')">✕</button>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+async function validerBenevole(id){
+  const i=_benInscrs.find(x=>x.id===id); if(!i)return;
+  const {error}=await sb.from('benevoles_inscriptions').update({statut:'valide',valide_le:new Date().toISOString()}).eq('id',id);
+  if(error)return toast(error.message,true);
+  toast('Bénévole validé');
+  // mail auto via Edge Function (si email présent)
+  if(i.email){
+    try{
+      const {error:me}=await sb.functions.invoke('mail-benevole',{body:{
+        email:i.email, nom:i.nom, prenom:i.prenom, poste:i.poste_nom||'',
+        creneaux:(Array.isArray(i.creneaux)?i.creneaux:[]).map(benCrLabel)
+      }});
+      if(me) toast('Validé, mais le mail a échoué : '+me.message, true);
+      else toast('Mail de confirmation envoyé ✓');
+    }catch(e){ toast('Validé (mail non envoyé)', true); }
+  }
+  loadBenevoles();
+}
+async function delBenevole(id){
+  if(!confirm('Supprimer cette inscription ?'))return;
+  const {error}=await sb.from('benevoles_inscriptions').delete().eq('id',id);
+  if(error)return toast(error.message,true);
+  toast('Supprimé'); loadBenevoles();
+}
+
+/* ---- Admin : gestion des postes & besoins ---- */
+async function openBenPostesForm(){
+  const {data}=await sb.from('benevoles_postes').select('*').order('ordre');
+  const postes=data||[];
+  openModal('Postes & besoins',`
+    <p style="color:var(--ink-dim);margin-bottom:12px">Active/désactive les postes et indique, pour chaque créneau, le nombre de bénévoles souhaités (laisse vide si pas de besoin précis).</p>
+    <div id="benPostesEdit">${postes.map(benPosteEditRow).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <input id="ben-newposte" type="text" placeholder="Nouveau poste…" style="flex:1;min-width:140px">
+      <button class="btn btn-ghost btn-sm" onclick="addBenPoste()">+ Ajouter</button>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveBenPostes()">Enregistrer</button>`);
+}
+function benPosteEditRow(p){
+  const b=p.besoins||{};
+  return `<div class="card" data-pid="${p.id}" style="margin-bottom:8px"><div class="card-body" style="padding:10px 12px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <input type="text" class="bp-nom" value="${esc(p.nom)}" style="flex:1;min-width:140px">
+      <label style="display:flex;gap:4px;align-items:center;font-size:.85rem"><input type="checkbox" class="bp-actif" ${p.actif!==false?'checked':''} style="width:auto"> actif</label>
+      <button class="btn btn-danger btn-sm" onclick="this.closest('[data-pid]').remove()">✕</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${_benCreneaux.map(c=>`<label style="font-size:.78rem;display:flex;flex-direction:column;gap:2px">${esc(c.label)}<input type="number" min="0" class="bp-besoin" data-cr="${c.id}" value="${b[c.id]??''}" style="width:64px"></label>`).join('')}
+    </div>
+  </div></div>`;
+}
+function addBenPoste(){
+  const v=$('#ben-newposte').value.trim(); if(!v)return;
+  const tmp={id:'new-'+Date.now(),nom:v,actif:true,besoins:{}};
+  $('#benPostesEdit').insertAdjacentHTML('beforeend',benPosteEditRow(tmp));
+  $('#ben-newposte').value='';
+}
+async function saveBenPostes(){
+  const rows=$$('#benPostesEdit [data-pid]');
+  let ordre=0; const ops=[];
+  for(const r of rows){
+    ordre++;
+    const pid=r.dataset.pid;
+    const nom=r.querySelector('.bp-nom').value.trim(); if(!nom)continue;
+    const actif=r.querySelector('.bp-actif').checked;
+    const besoins={};
+    r.querySelectorAll('.bp-besoin').forEach(inp=>{const v=inp.value.trim();if(v!=='')besoins[inp.dataset.cr]=parseInt(v,10)||0;});
+    const payload={nom,actif,besoins,ordre};
+    if(pid.startsWith('new-')) ops.push(sb.from('benevoles_postes').insert(payload));
+    else ops.push(sb.from('benevoles_postes').update(payload).eq('id',pid));
+  }
+  // suppressions : postes présents en base mais plus dans le formulaire
+  const presentIds=rows.map(r=>r.dataset.pid).filter(id=>!id.startsWith('new-'));
+  const {data:allp}=await sb.from('benevoles_postes').select('id');
+  (allp||[]).forEach(p=>{if(!presentIds.includes(p.id))ops.push(sb.from('benevoles_postes').delete().eq('id',p.id));});
+  const res=await Promise.all(ops);
+  const err=res.find(r=>r.error);
+  if(err)return toast(err.error.message,true);
+  closeModal();toast('Postes enregistrés');loadBenevoles();
+}
+
+/* ---- Admin : gestion des créneaux ---- */
+async function openBenCreneauxForm(){
+  const {data}=await sb.from('benevoles_creneaux').select('*').order('ordre');
+  const cr=data||[];
+  openModal('Créneaux',`
+    <p style="color:var(--ink-dim);margin-bottom:12px">Modifie, ajoute ou désactive les créneaux proposés aux bénévoles.</p>
+    <div id="benCrEdit">${cr.map(benCrEditRow).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <input id="ben-newcr" type="text" placeholder="Nouveau créneau (ex. Vendredi soir)…" style="flex:1;min-width:160px">
+      <button class="btn btn-ghost btn-sm" onclick="addBenCr()">+ Ajouter</button>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveBenCreneaux()">Enregistrer</button>`);
+}
+function benCrEditRow(c){
+  return `<div class="card" data-cid="${c.id}" style="margin-bottom:6px"><div class="card-body" style="padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input type="text" class="bc-label" value="${esc(c.label)}" style="flex:1;min-width:140px">
+    <label style="display:flex;gap:4px;align-items:center;font-size:.85rem"><input type="checkbox" class="bc-actif" ${c.actif!==false?'checked':''} style="width:auto"> actif</label>
+    <button class="btn btn-danger btn-sm" onclick="this.closest('[data-cid]').remove()">✕</button>
+  </div></div>`;
+}
+function addBenCr(){
+  const v=$('#ben-newcr').value.trim(); if(!v)return;
+  const id='cr_'+Date.now();
+  $('#benCrEdit').insertAdjacentHTML('beforeend',benCrEditRow({id,label:v,actif:true}));
+  $('#ben-newcr').value='';
+}
+async function saveBenCreneaux(){
+  const rows=$$('#benCrEdit [data-cid]');
+  let ordre=0; const ops=[];
+  for(const r of rows){
+    ordre++;
+    const id=r.dataset.cid;
+    const label=r.querySelector('.bc-label').value.trim(); if(!label)continue;
+    const actif=r.querySelector('.bc-actif').checked;
+    ops.push(sb.from('benevoles_creneaux').upsert({id,label,actif,ordre}));
+  }
+  const presentIds=rows.map(r=>r.dataset.cid);
+  const {data:allc}=await sb.from('benevoles_creneaux').select('id');
+  (allc||[]).forEach(c=>{if(!presentIds.includes(c.id))ops.push(sb.from('benevoles_creneaux').delete().eq('id',c.id));});
+  const res=await Promise.all(ops);
+  const err=res.find(r=>r.error);
+  if(err)return toast(err.error.message,true);
+  closeModal();toast('Créneaux enregistrés');loadBenevoles();
+}
+
+/* ---- Exports CSV ---- */
+function _csvCell(v){v=(v==null?'':String(v));return '"'+v.replace(/"/g,'""')+'"';}
+function _downloadCsv(filename,rows){
+  const bom='﻿'; // Excel lit bien l'UTF-8
+  const txt=bom+rows.map(r=>r.map(_csvCell).join(';')).join('\r\n');
+  const blob=new Blob([txt],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+async function exportBenevolesTableau(){
+  const {data:ins}=await sb.from('benevoles_inscriptions').select('*').order('poste_nom');
+  const rows=[['Poste','Nom','Prénom','E-mail','Téléphone','Statut',..._benCreneaux.map(c=>c.label),'Commentaire']];
+  (ins||[]).forEach(i=>{
+    const crset=new Set(Array.isArray(i.creneaux)?i.creneaux:[]);
+    rows.push([
+      i.poste_nom||'', i.nom||'', i.prenom||'', i.email||'', i.telephone||'',
+      i.statut==='valide'?'Validé':'En attente',
+      ..._benCreneaux.map(c=>crset.has(c.id)?'X':''),
+      i.commentaire||''
+    ]);
+  });
+  _downloadCsv('benevoles_tableau_'+new Date().toISOString().slice(0,10)+'.csv',rows);
+  toast('Export tableau prêt');
+}
+async function exportBenevolesContacts(){
+  // Format compatible import Google Contacts
+  const {data:ins}=await sb.from('benevoles_inscriptions').select('*').order('nom');
+  const rows=[['Name','Given Name','Family Name','E-mail 1 - Value','Phone 1 - Value','Group Membership','Notes']];
+  (ins||[]).forEach(i=>{
+    const full=`${i.prenom||''} ${i.nom||''}`.trim();
+    rows.push([ full, i.prenom||'', i.nom||'', i.email||'', i.telephone||'', 'Bénévoles MC Morfalous', i.poste_nom?('Poste : '+i.poste_nom):'' ]);
+  });
+  _downloadCsv('benevoles_contacts_google_'+new Date().toISOString().slice(0,10)+'.csv',rows);
+  toast('Export contacts prêt');
 }
 
 /* ---- Actus ---- */
