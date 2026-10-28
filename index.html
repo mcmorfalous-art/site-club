@@ -343,6 +343,29 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 #page-admin>*{width:100%;float:none;clear:both}
 #adminContent{display:block;width:100%;clear:both}
 #adminTabs{width:100%}
+/* ===== NOUVEL ESPACE BUREAU ===== */
+.adm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px;margin-bottom:22px}
+.adm-kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center}
+.adm-kpi .k-ico{font-size:1.3rem;line-height:1}
+.adm-kpi .k-n{font-family:var(--font-disp);font-weight:900;font-size:1.7rem;color:var(--accent);line-height:1.1;margin-top:4px}
+.adm-kpi .k-l{font-size:.72rem;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-dim);margin-top:4px}
+.adm-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.adm-tabs button{background:var(--surface);border:1px solid var(--line);color:var(--ink-dim);border-radius:24px;padding:9px 16px;font-family:var(--font-disp);font-weight:700;font-size:.9rem;cursor:pointer;transition:all .12s}
+.adm-tabs button:hover{border-color:var(--accent);color:var(--ink)}
+.adm-tabs button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
+.adm-h3{font-family:var(--font-disp);font-weight:800;text-transform:uppercase;font-size:1rem;color:var(--ink);margin:0 0 14px}
+.adm-hint{color:var(--ink-dim);font-size:.85rem;margin:-6px 0 14px}
+.adm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.adm-card{display:flex;flex-direction:column;align-items:flex-start;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;cursor:pointer;transition:all .14s;min-height:104px;margin:0}
+.adm-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.25)}
+.adm-card.accent{border-left:3px solid var(--accent)}
+.adm-card .c-ico{font-size:1.6rem;line-height:1;margin-bottom:5px}
+.adm-card .c-t{font-family:var(--font-disp);font-weight:700;font-size:1rem;color:var(--ink);line-height:1.15}
+.adm-card .c-d{font-size:.78rem;color:var(--ink-dim);line-height:1.3}
+.adm-links{display:flex;flex-wrap:wrap;gap:9px}
+.adm-link{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 15px;font-size:.92rem;cursor:pointer;transition:all .12s}
+.adm-link:hover{border-color:var(--accent);background:var(--surface-2)}
+@media(max-width:600px){.adm-kpi .k-n{font-size:1.4rem}.adm-tabs button{padding:8px 12px;font-size:.82rem}.adm-grid{grid-template-columns:1fr 1fr}}
 .admin-card h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .res-admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
 .res-admin-tabs button{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;padding:7px 13px;border-radius:var(--radius);color:var(--ink-dim);font-size:.88rem;border:1px solid transparent}
@@ -940,7 +963,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
 <section class="page admin-only" id="page-admin" style="display:none">
   <div class="eyebrow">Gestion</div>
   <h1 class="title">Espace bureau</h1>
-  <p class="lead" style="margin-bottom:24px">Crée un nouvel élément, ou va sur chaque page pour gérer son contenu (les boutons ✎ ✕ et les sections de gestion s'affichent en mode admin).</p>
+  <p class="lead" style="margin-bottom:24px">Tout le club en un coup d'œil. Choisis un onglet, ou lance une action rapide.</p>
   <div id="adminContent"><div class="loading">Chargement…</div></div>
 </section>
 
@@ -3863,50 +3886,110 @@ async function savePage(slug){
   if(slug==='notre-histoire')loadHistoire();else if(slug==='mentions-legales')loadMentions();else loadLicence();
 }
 /* ============ ESPACE BUREAU (hub) ============ */
+let _adminTab='accueil';
 async function loadAdmin(){
   if(!isAdmin){$('#adminContent').innerHTML=emptyState('Accès réservé aux admins.');return;}
   const c=$('#adminContent');
   c.innerHTML=`
-    <div class="admin-card" style="margin-bottom:20px">
-      <h3>➕ Créer un nouvel élément</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
-        <button class="btn btn-primary btn-sm" onclick="openActuForm()">+ Article</button>
-        <button class="btn btn-primary btn-sm" onclick="openEventForm()">+ Événement</button>
-        <button class="btn btn-primary btn-sm" onclick="openCourseForm()">+ Course résultats</button>
-        <button class="btn btn-primary btn-sm" onclick="openAlbumForm()">+ Album photo/vidéo</button>
-        <button class="btn btn-ghost btn-sm" onclick="openBureauForm()">+ Membre bureau</button>
-        <button class="btn btn-ghost btn-sm" onclick="openPartenaireForm()">+ Partenaire</button>
+    <div class="adm-kpis" id="admKpis">
+      <div class="adm-kpi"><div class="k-ico">🔑</div><div class="k-n" id="kpiOuv">—</div><div class="k-l">Prochaine ouverture</div></div>
+      <div class="adm-kpi"><div class="k-ico">📅</div><div class="k-n" id="kpiEvt">—</div><div class="k-l">Prochain événement</div></div>
+      <div class="adm-kpi"><div class="k-ico">✍️</div><div class="k-n" id="kpiInsc">—</div><div class="k-l">Inscrits (prochain)</div></div>
+      <div class="adm-kpi"><div class="k-ico">👁️</div><div class="k-n" id="kpiVis">—</div><div class="k-l">Visites (7 j)</div></div>
+      <div class="adm-kpi"><div class="k-ico">🔔</div><div class="k-n" id="kpiNotif">—</div><div class="k-l">Abonnés notifs</div></div>
+    </div>
+    <div class="adm-tabs" id="admTabs">
+      <button data-tab="accueil" onclick="adminTab('accueil')">🏠 Tableau de bord</button>
+      <button data-tab="contenu" onclick="adminTab('contenu')">📝 Contenu</button>
+      <button data-tab="inscriptions" onclick="adminTab('inscriptions')">👥 Membres &amp; inscrits</button>
+      <button data-tab="notifs" onclick="adminTab('notifs')">🔔 Notifications</button>
+      <button data-tab="stats" onclick="adminTab('stats')">📊 Stats &amp; exports</button>
+    </div>
+    <div id="admPanels"></div>`;
+  adminTab(_adminTab);
+  loadAdminKpis();
+}
+
+function adminTab(tab){
+  _adminTab=tab;
+  $$('#admTabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  const p=$('#admPanels');if(!p)return;
+
+  if(tab==='accueil'){
+    p.innerHTML=`
+      <h3 class="adm-h3">⚡ Actions rapides</h3>
+      <div class="adm-grid">
+        <button class="adm-card accent" onclick="openEventForm()"><span class="c-ico">📅</span><span class="c-t">Nouvel événement</span><span class="c-d">Roulage, course, repas, AG…</span></button>
+        <button class="adm-card accent" onclick="openActuForm()"><span class="c-ico">📰</span><span class="c-t">Nouvel article</span><span class="c-d">Actu, compte-rendu…</span></button>
+        <button class="adm-card accent" onclick="openCourseForm()"><span class="c-ico">🏁</span><span class="c-t">Résultats de course</span><span class="c-d">Classements + visuels</span></button>
+        <button class="adm-card accent" onclick="openAlbumForm()"><span class="c-ico">📸</span><span class="c-t">Album photos/vidéos</span><span class="c-d">Galerie du club</span></button>
+        <button class="adm-card" onclick="adminTab('notifs')"><span class="c-ico">🔔</span><span class="c-t">Envoyer une notif</span><span class="c-d">Prévenir les membres</span></button>
+        <button class="adm-card" onclick="openSondageForm()"><span class="c-ico">🗳️</span><span class="c-t">Nouveau sondage</span><span class="c-d">Demander l'avis</span></button>
       </div>
-    </div>
-    <div class="admin-card" style="margin-bottom:20px">
-      <h3>📄 Modifier les pages de contenu</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
-        <button class="btn btn-ghost btn-sm" onclick="openCoverForm()">🎨 Accueil (couverture, logo, liens)</button>
-        <button class="btn btn-ghost btn-sm" onclick="openCountdownForm()">⏱ Compte à rebours</button>
-        <button class="btn btn-ghost btn-sm" onclick="openPageForm('notre-histoire','Notre histoire')">Page Histoire</button>
-        <button class="btn btn-ghost btn-sm" onclick="openPageForm('prise-licence','Prendre sa licence')">Page Licence</button>
-        <button class="btn btn-ghost btn-sm" onclick="openPageForm('mentions-legales','Mentions légales')">Mentions légales</button>
+      <h3 class="adm-h3" style="margin-top:26px">🗂 Gérer les pages du site</h3>
+      <p class="adm-hint">Clique pour aller sur la page : les boutons ✎ ✕ et les sections de gestion s'affichent en mode admin.</p>
+      <div class="adm-links">
+        <button class="adm-link" onclick="go('calendrier')">📅 Calendrier &amp; inscriptions</button>
+        <button class="adm-link" onclick="go('ouverture')">🔑 Ouvertures &amp; travaux</button>
+        <button class="adm-link" onclick="go('resultats')">🏁 Résultats &amp; pilotes</button>
+        <button class="adm-link" onclick="go('photos')">📸 Photos</button>
+        <button class="adm-link" onclick="go('partenaires')">🤝 Partenaires</button>
+        <button class="adm-link" onclick="go('sondages')">🗳️ Sondages</button>
+        <button class="adm-link" onclick="go('participer')">💡 Idées des membres</button>
+        <button class="adm-link" onclick="go('bureau')">👥 Bureau &amp; accès admin</button>
+      </div>`;
+  }
+
+  else if(tab==='contenu'){
+    p.innerHTML=`
+      <h3 class="adm-h3">➕ Créer</h3>
+      <div class="adm-links">
+        <button class="adm-link" onclick="openActuForm()">📰 Article</button>
+        <button class="adm-link" onclick="openEventForm()">📅 Événement</button>
+        <button class="adm-link" onclick="openCourseForm()">🏁 Course / résultats</button>
+        <button class="adm-link" onclick="openAlbumForm()">📸 Album photo/vidéo</button>
+        <button class="adm-link" onclick="openPartenaireForm()">🤝 Partenaire</button>
+        <button class="adm-link" onclick="openBureauForm()">👤 Membre du bureau</button>
+        <button class="adm-link" onclick="openSondageForm()">🗳️ Sondage</button>
       </div>
-    </div>
-    <div class="admin-card">
-      <h3>🗂 Gérer sur chaque page</h3>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin:8px 0 12px">Va sur la page concernée : les boutons ✎ ✕ et les sections de gestion (inscriptions, idées, pilotes, catégories, accès admin…) s'affichent en mode admin.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:10px">
-        <button class="btn btn-ghost btn-sm" onclick="go('calendrier')">📅 Calendrier + inscriptions</button>
-        <button class="btn btn-ghost btn-sm" onclick="go('resultats')">🏁 Résultats + pilotes/catégories</button>
-        <button class="btn btn-ghost btn-sm" onclick="go('participer')">💡 Idées reçues</button>
-        <button class="btn btn-ghost btn-sm" onclick="go('ouverture')">🔑 Ouverture + code club</button>
-        <button class="btn btn-ghost btn-sm" onclick="go('bureau')">👥 Bureau + accès admin</button>
+      <h3 class="adm-h3" style="margin-top:26px">📄 Modifier les pages</h3>
+      <div class="adm-links">
+        <button class="adm-link" onclick="openCoverForm()">🎨 Accueil (couverture, logo, liens)</button>
+        <button class="adm-link" onclick="openCountdownForm()">⏱ Compte à rebours</button>
+        <button class="adm-link" onclick="openPageForm('notre-histoire','Notre histoire')">📖 Notre histoire</button>
+        <button class="adm-link" onclick="openPageForm('prise-licence','Prendre sa licence')">📋 Licence</button>
+        <button class="adm-link" onclick="openPageForm('mentions-legales','Mentions légales')">⚖️ Mentions légales</button>
+      </div>`;
+  }
+
+  else if(tab==='inscriptions'){
+    p.innerHTML=`
+      <h3 class="adm-h3">👥 Gérer les membres &amp; les inscrits</h3>
+      <p class="adm-hint">Chaque liste se gère sur sa page (avec filtres, export et suppression).</p>
+      <div class="adm-grid">
+        <button class="adm-card" onclick="go('calendrier')"><span class="c-ico">📅</span><span class="c-t">Inscriptions aux événements</span><span class="c-d">Voir, filtrer, exporter, mailer</span></button>
+        <button class="adm-card" onclick="go('ouverture')"><span class="c-ico">🔑</span><span class="c-t">Ouvertures du terrain</span><span class="c-d">Réservations &amp; archives pilotes</span></button>
+        <button class="adm-card" onclick="go('ouverture')"><span class="c-ico">🔧</span><span class="c-t">Journées travaux</span><span class="c-d">Bénévoles &amp; présences</span></button>
+        <button class="adm-card" onclick="go('participer')"><span class="c-ico">💡</span><span class="c-t">Idées des membres</span><span class="c-d">Boîte à idées reçue</span></button>
+        <button class="adm-card" onclick="go('bureau')"><span class="c-ico">🔐</span><span class="c-t">Accès administrateurs</span><span class="c-d">Qui peut gérer le site</span></button>
       </div>
-    </div>
-    <div style="margin-top:20px">
-      <h2 class="section-title" style="margin-bottom:8px">📢 Notifications push</h2>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Envoie une notification à tous les membres abonnés, en un clic.</p>
-      <div id="pushAdminContent"><div class="loading">Chargement…</div></div>
-    </div>
-    <div style="margin-top:28px">
-      <h2 class="section-title" style="margin-bottom:8px">📊 Fréquentation du site</h2>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Statistiques de visites, sans cookies ni service externe.</p>
+      <h3 class="adm-h3" style="margin-top:26px">🗒️ Journal des annulations</h3>
+      <div id="annulContent"><div class="loading">Chargement…</div></div>`;
+    loadAnnulations();
+  }
+
+  else if(tab==='notifs'){
+    p.innerHTML=`
+      <h3 class="adm-h3">🔔 Notifications push</h3>
+      <p class="adm-hint">Envoie une alerte sur le téléphone de tous les membres abonnés, en un clic.</p>
+      <div id="pushAdminContent"><div class="loading">Chargement…</div></div>`;
+    loadPushAdmin();
+  }
+
+  else if(tab==='stats'){
+    p.innerHTML=`
+      <h3 class="adm-h3">📊 Fréquentation du site</h3>
+      <p class="adm-hint">Sans cookies ni service externe.</p>
       <div class="stats-period" id="statsPeriod">
         <button class="active" onclick="setStatsPeriod(7,this)">7 jours</button>
         <button onclick="setStatsPeriod(30,this)">30 jours</button>
@@ -3922,16 +4005,40 @@ async function loadAdmin(){
           <button class="btn btn-ghost btn-sm" onclick="exportEvenementsXlsx()">📅 Événements</button>
           <button class="btn btn-ghost btn-sm" onclick="exportStatsXlsx()">📊 Fréquentation</button>
         </div>
-      </div>
-    </div>
-    <div style="margin-top:28px">
-      <h2 class="section-title" style="margin-bottom:8px">🗒️ Journal des annulations</h2>
-      <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:16px">Historique des inscriptions annulées (événements, ouvertures, travaux).</p>
-      <div id="annulContent"><div class="loading">Chargement…</div></div>
-    </div>`;
-  loadPushAdmin();
-  loadStats();
-  loadAnnulations();
+      </div>`;
+    loadStats();
+  }
+}
+
+async function loadAdminKpis(){
+  const today=isoD(new Date());
+  // prochaine ouverture
+  try{
+    const {data}=await sb.from('ouvertures_reservations').select('date_jour,nom').gte('date_jour',today).order('date_jour').limit(1);
+    const el=$('#kpiOuv');
+    if(el)el.textContent=data&&data.length?new Date(data[0].date_jour+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'—';
+  }catch(_){}
+  // prochain événement + inscrits
+  try{
+    const {data:ev}=await sb.from('evenements').select('id,titre,date_debut').gte('date_debut',new Date().toISOString()).order('date_debut').limit(1);
+    const elE=$('#kpiEvt'), elI=$('#kpiInsc');
+    if(ev&&ev.length){
+      if(elE)elE.textContent=new Date(ev[0].date_debut).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      const {count}=await sb.from('inscriptions').select('*',{count:'exact',head:true}).eq('evenement_id',ev[0].id);
+      if(elI)elI.textContent=count??0;
+    }else{ if(elE)elE.textContent='—'; if(elI)elI.textContent='0'; }
+  }catch(_){}
+  // visites 7 jours
+  try{
+    const since=new Date(Date.now()-7*86400000).toISOString();
+    const {count}=await sb.from('visites').select('*',{count:'exact',head:true}).gte('created_at',since);
+    const el=$('#kpiVis');if(el)el.textContent=count??0;
+  }catch(_){}
+  // abonnés notifs
+  try{
+    const {count}=await sb.from('push_subscriptions').select('*',{count:'exact',head:true});
+    const el=$('#kpiNotif');if(el)el.textContent=count??0;
+  }catch(_){}
 }
 /* ---- Journal des annulations ---- */
 async function loadAnnulations(){
