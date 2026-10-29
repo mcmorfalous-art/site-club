@@ -109,6 +109,8 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .insc-filters button.insc-export{background:var(--surface-2);border-color:var(--green);color:var(--green);margin-left:auto}
 .insc-filters button.insc-mail{background:var(--surface-2);border-color:var(--accent);color:var(--accent)}
 .insc-filters button.insc-mail:hover{background:var(--accent);color:#0a1a24}
+.insc-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px 16px;cursor:pointer;color:var(--ink);font-family:var(--font-disp);font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.02em}
+.insc-toggle:hover{border-color:var(--accent)}
 /* ===== LIGHTBOX PHOTOS ===== */
 .lightbox{position:fixed;inset:0;z-index:2000;background:rgba(5,14,20,.94);display:none;align-items:center;justify-content:center;padding:20px}
 .lightbox.open{display:flex}
@@ -2524,12 +2526,26 @@ function renderInscriptions(){
   const cont=$('#calInscriptionsList');if(!cont)return;
   let list=_inscCache;
   if(_inscFilter!=='tous')list=_inscCache.filter(i=>(i.evenements?.titre||'Sans événement')===_inscFilter);
-  cont.innerHTML=(list.length)?list.map(i=>{
+  if(!list.length){cont.innerHTML=emptyState('Aucune inscription pour ce filtre.');return;}
+  const rows=list.map(i=>{
     const rep=i.reponses&&typeof i.reponses==='object'&&Object.keys(i.reponses).length?i.reponses:null;
     const detail=rep?Object.entries(rep).filter(([k,v])=>v!==''&&v!=null).map(([k,v])=>`<small>${esc(k)} : <strong>${esc(String(v))}</strong></small>`).join(''):`<small>${i.nb_personnes||1} pers. ${i.email?'· '+esc(i.email):''} ${i.telephone?'· '+esc(i.telephone):''}</small>${i.commentaire?`<small style="font-style:italic">"${esc(i.commentaire)}"</small>`:''}`;
     const titre=i.nom||(rep?Object.values(rep)[0]:'')||'—';
     return `<div class="admin-list-row"><div class="info"><strong>${esc(titre)}</strong><small style="color:var(--accent)">${esc(i.evenements?.titre||'—')}</small>${detail}</div><button class="btn btn-danger btn-sm" onclick="delRow('inscriptions','${i.id}','calendrier')">✕</button></div>`;
-  }).join(''):emptyState('Aucune inscription pour ce filtre.');
+  }).join('');
+  const label=_inscFilter==='tous'?'inscription'+(list.length>1?'s':''):'inscrit'+(list.length>1?'s':'')+' · '+_inscFilter;
+  cont.innerHTML=`
+    <button class="insc-toggle" id="inscToggleBtn" onclick="toggleInscList()">
+      <span>Voir les ${list.length} ${label}</span><span id="inscToggleCaret">▾</span>
+    </button>
+    <div id="inscListInner" style="display:${_inscOpen?'block':'none'};margin-top:12px">${rows}</div>`;
+}
+let _inscOpen=false;
+function toggleInscList(){
+  _inscOpen=!_inscOpen;
+  const inner=$('#inscListInner'), caret=$('#inscToggleCaret');
+  if(inner)inner.style.display=_inscOpen?'block':'none';
+  if(caret)caret.textContent=_inscOpen?'▴':'▾';
 }
 
 /* ============================================================
@@ -4458,6 +4474,7 @@ function adminTab(tab){
       <div class="adm-links">
         <button class="adm-link" onclick="go('calendrier')">📅 Calendrier &amp; inscriptions</button>
         <button class="adm-link" onclick="go('ouverture')">🔑 Ouvertures &amp; travaux</button>
+        <button class="adm-link" onclick="go('benevoles')">🙋 Bénévoles</button>
         <button class="adm-link" onclick="go('resultats')">🏁 Résultats &amp; pilotes</button>
         <button class="adm-link" onclick="go('photos')">📸 Photos</button>
         <button class="adm-link" onclick="go('partenaires')">🤝 Partenaires</button>
