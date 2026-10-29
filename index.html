@@ -210,6 +210,10 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .tile-travaux h3{color:#eafaff}
 .tile-travaux p{color:#bfe6f3!important}
 .tile-travaux:hover{border-color:var(--accent-2)}
+.tile-benevoles{background:linear-gradient(135deg,#1c5a2e,#124020);border-color:#4caf50;border-left-color:#4caf50}
+.tile-benevoles h3{color:#eafff0}
+.tile-benevoles p{color:#bdeacb!important}
+.tile-benevoles:hover{border-color:#6fd47f}
 /* Boutons nav Ouverture / Travaux colorés */
 .nav-open{background:var(--amber)!important;color:#0a1a24!important;font-weight:700!important}
 .nav-open:hover{filter:brightness(1.08)}
@@ -242,6 +246,11 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .ben-names li:last-child{border-bottom:0}
 .ben-cr-mini{display:block;font-size:.74rem;color:var(--ink-dim)}
 .ben-empty-poste{font-size:.85rem;color:var(--ink-dim);font-style:italic;margin:4px 0 0}
+/* ===== Notice d'intro bénévoles ===== */
+.ben-notice{display:flex;align-items:center;gap:12px;background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.4);border-left:3px solid #4caf50;border-radius:10px;padding:12px 16px;margin-bottom:22px}
+.ben-notice-ico{font-size:1.5rem;flex-shrink:0}
+.ben-notice p{margin:0;color:var(--ink);font-size:.92rem;line-height:1.5}
+.ben-notice strong{color:#6fd47f}
 /* ===== Tuiles postes cliquables (public) ===== */
 .ben-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
 .ben-tile{text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;display:flex;flex-direction:column;gap:9px;transition:transform .15s,border-color .15s,box-shadow .15s;font-family:inherit;color:inherit}
@@ -767,6 +776,9 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     </button>
     <button class="tile tile-travaux" onclick="go('travaux')">
       <span class="ico">🔧</span><h3>Travaux</h3><p>S'inscrire aux chantiers</p>
+    </button>
+    <button class="tile tile-benevoles" onclick="go('benevoles')">
+      <span class="ico">🙋</span><h3>Bénévoles</h3><p>Donne un coup de main</p>
     </button>
     <button class="tile" onclick="go('actualites')">
       <span class="ico">📰</span><h3>Actus</h3><p>Vie du club</p>
@@ -1408,6 +1420,9 @@ async function applySession(session){
   document.body.classList.toggle('is-admin',isAdmin);
   $('#adminBar').classList.toggle('show',isAdmin);
   refreshBureauBtn();
+  // re-rend la page courante si son contenu admin est construit en JS (ex : bénévoles)
+  // pour que le panneau de gestion apparaisse/disparaisse dès la connexion/déconnexion
+  if(_currentPage==='benevoles' && typeof loadBenevoles==='function') loadBenevoles();
 }
 function openAuth(){
   if(currentUser){
@@ -2534,26 +2549,11 @@ async function loadBenevoles(){
   _benPostes=(po||[]);
   const postesActifs=_benPostes.filter(p=>p.actif!==false);
 
-  // ----- Formulaire public d'inscription -----
+  // ----- Notice d'intro -----
   let html=`
-  <div class="card" style="max-width:640px;margin-bottom:28px">
-    <div class="card-body">
-      <p style="margin-bottom:16px">Merci de faire vivre notre épreuve ! Remplis ce formulaire pour t'inscrire comme bénévole : choisis ton poste et coche les créneaux où tu es disponible.</p>
-      <div class="field"><label>Nom *</label><input id="ben-nom" type="text" placeholder="Ton nom"></div>
-      <div class="field"><label>Prénom *</label><input id="ben-prenom" type="text" placeholder="Ton prénom"></div>
-      <div class="field"><label>E-mail</label><input id="ben-email" type="email" placeholder="ton@mail.fr"></div>
-      <div class="field"><label>Téléphone</label><input id="ben-tel" type="tel" placeholder="06 ..."></div>
-      <div class="field"><label>Poste souhaité *</label>
-        <select id="ben-poste">${postesActifs.map(p=>`<option value="${p.id}">${esc(p.nom)}</option>`).join('')}</select>
-      </div>
-      <div class="field"><label>Mes disponibilités *</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-          ${_benCreneaux.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('')}
-        </div>
-      </div>
-      <div class="field"><label>Commentaire (optionnel)</label><textarea id="ben-comm" placeholder="Une précision ?"></textarea></div>
-      <button class="btn btn-primary" onclick="submitBenevole()">M'inscrire comme bénévole</button>
-    </div>
+  <div class="ben-notice">
+    <span class="ben-notice-ico">🤝</span>
+    <p><strong>On a besoin de toi !</strong> Clique sur un poste ci-dessous pour voir les créneaux, les places disponibles et t'inscrire. Même deux heures, ça compte.</p>
   </div>`;
 
   // ----- Vue visuelle publique : tableau de postes cliquable (validés uniquement) -----
@@ -2691,9 +2691,32 @@ function openBenPosteDetail(posteId){
     <p style="color:var(--ink-dim);margin:-4px 0 14px">Places restantes par créneau. Pour t'inscrire, utilise le formulaire en haut de la page en choisissant ce poste.</p>
     ${bloc}
     <div style="margin-top:16px;text-align:center">
-      <button class="btn btn-primary" onclick="closeModal();document.getElementById('ben-poste')&&(document.getElementById('ben-poste').value='${p.id}');document.getElementById('ben-nom')&&document.getElementById('ben-nom').scrollIntoView({behavior:'smooth',block:'center'})">M'inscrire à ce poste</button>
+      <button class="btn btn-primary" onclick="openBenFormModal('${p.id}')">M'inscrire à ce poste</button>
     </div>`;
   openModal('🧑‍🔧 '+p.nom,body);
+}
+
+/* Formulaire d'inscription (dans une popup), poste pré-sélectionné possible */
+function benFormMarkup(preselect){
+  const postesActifs=_benPostes.filter(p=>p.actif!==false);
+  return `
+    <div class="field"><label>Nom *</label><input id="ben-nom" type="text" placeholder="Ton nom"></div>
+    <div class="field"><label>Prénom *</label><input id="ben-prenom" type="text" placeholder="Ton prénom"></div>
+    <div class="field"><label>E-mail</label><input id="ben-email" type="email" placeholder="ton@mail.fr"></div>
+    <div class="field"><label>Téléphone</label><input id="ben-tel" type="tel" placeholder="06 ..."></div>
+    <div class="field"><label>Poste souhaité *</label>
+      <select id="ben-poste">${postesActifs.map(p=>`<option value="${p.id}"${String(p.id)===String(preselect)?' selected':''}>${esc(p.nom)}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>Mes disponibilités *</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        ${_benCreneaux.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('')}
+      </div>
+    </div>
+    <div class="field"><label>Commentaire (optionnel)</label><textarea id="ben-comm" placeholder="Une précision ?"></textarea></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="submitBenevole()">Valider mon inscription</button>`;
+}
+function openBenFormModal(preselect){
+  openModal('🙋 Inscription bénévole',benFormMarkup(preselect));
 }
 
 async function submitBenevole(){
