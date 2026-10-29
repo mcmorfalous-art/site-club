@@ -432,7 +432,7 @@ body.is-admin .row-actions.admin-only{display:flex!important}
 body.is-admin #ouvArchiveWrap,body.is-admin #travArchiveWrap,
 body.is-admin #calInscriptionsWrap,body.is-admin #resAdminWrap,
 body.is-admin #adminsWrap,body.is-admin #ideesRecuesWrap,
-body.is-admin #pushAdminWrap,body.is-admin #benGestionWrap{display:block!important;width:100%}
+body.is-admin #pushAdminWrap{display:block!important;width:100%}
 /* le tableau partenaires s'affiche uniquement quand la classe est présente */
 #partTableWrap{display:none!important}
 body.is-admin #partTableWrap.show{display:block!important;width:100%}
@@ -2577,37 +2577,32 @@ async function loadBenevoles(){
   _benValides=valides||[];
   html+=renderBenApercu(postesActifs,_benValides);
 
-  // ----- Partie ADMIN (repliée, visible admin uniquement) -----
-  if(isAdmin){
-    const {data:ins}=await sb.from('benevoles_inscriptions').select('*').order('created_at',{ascending:false});
-    _benInscrs=ins||[];
-    const nAtt=_benInscrs.filter(i=>i.statut!=='valide').length;
-    html+=`
-    <div class="admin-only" id="benGestionWrap" style="margin-top:28px">
-      <button class="btn btn-primary" id="benGestToggle" onclick="toggleBenGestion()" style="width:100%;text-align:left">
-        ⚙️ Gestion des bénévoles (admin)${nAtt>0?` <span style="background:var(--hot);color:#fff;border-radius:20px;padding:1px 10px;font-size:.8rem;margin-left:6px">${nAtt} en attente</span>`:''} <span style="float:right">▾</span>
-      </button>
-      <div id="benGestionPanel" style="display:none;border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;padding:18px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          <button class="btn btn-ghost btn-sm" onclick="openBenPostesForm()">⚙️ Postes & besoins</button>
-          <button class="btn btn-ghost btn-sm" onclick="openBenCreneauxForm()">🗓️ Créneaux</button>
-          <button class="btn btn-ghost btn-sm" onclick="exportBenevolesTableau()">⬇️ Export tableau complet</button>
-          <button class="btn btn-ghost btn-sm" onclick="exportBenevolesContacts()">⬇️ Export contacts (Google)</button>
-        </div>
-        <p style="color:var(--ink-dim);margin-bottom:12px">${_benInscrs.length} inscription(s) · ${nAtt} en attente de validation</p>
-        <div id="benAdminList"></div>
-      </div>
-    </div>`;
-  }
   cont.innerHTML=html;
-  if(isAdmin)renderBenAdminList();
 }
-function toggleBenGestion(){
-  const p=$('#benGestionPanel'), b=$('#benGestToggle');
-  if(!p)return;
-  const open=p.style.display==='none';
-  p.style.display=open?'block':'none';
-  if(b){const a=b.querySelector('span[style*="float"]');if(a)a.textContent=open?'▴':'▾';}
+/* ----- Gestion admin des bénévoles : ouverte en popup depuis l'Espace bureau ----- */
+async function openBenGestion(){
+  openModal('🙋 Gestion des bénévoles',`<div class="loading">Chargement…</div>`);
+  // charge créneaux, postes et inscriptions
+  const [{data:cr},{data:po},{data:ins}]=await Promise.all([
+    sb.from('benevoles_creneaux').select('*').order('ordre'),
+    sb.from('benevoles_postes').select('*').order('ordre'),
+    sb.from('benevoles_inscriptions').select('*').order('created_at',{ascending:false})
+  ]);
+  _benCreneaux=(cr||[]).filter(c=>c.actif!==false);
+  _benPostes=(po||[]);
+  _benInscrs=ins||[];
+  const nAtt=_benInscrs.filter(i=>i.statut!=='valide').length;
+  const body=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-ghost btn-sm" onclick="openBenPostesForm()">⚙️ Postes & besoins</button>
+      <button class="btn btn-ghost btn-sm" onclick="openBenCreneauxForm()">🗓️ Créneaux</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportBenevolesTableau()">⬇️ Export tableau</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportBenevolesContacts()">⬇️ Export contacts</button>
+    </div>
+    <p style="color:var(--ink-dim);margin-bottom:12px">${_benInscrs.length} inscription(s) · ${nAtt} en attente de validation</p>
+    <div id="benAdminList"></div>`;
+  openModal('🙋 Gestion des bénévoles',body);
+  renderBenAdminList();
 }
 
 function benCrLabel(id){const c=_benCreneaux.find(x=>x.id===id);return c?c.label:id;}
@@ -2820,13 +2815,13 @@ async function validerBenevole(id){
       else toast('Validé, mais mail échoué : '+txt.slice(0,120), true);
     }catch(e){ toast('Validé, mais mail non envoyé : '+e.message, true); }
   }
-  loadBenevoles();
+  openBenGestion();
 }
 async function delBenevole(id){
   if(!confirm('Supprimer cette inscription ?'))return;
   const {error}=await sb.from('benevoles_inscriptions').delete().eq('id',id);
   if(error)return toast(error.message,true);
-  toast('Supprimé'); loadBenevoles();
+  toast('Supprimé'); openBenGestion();
 }
 
 /* ---- Admin : gestion des postes & besoins ---- */
@@ -2882,7 +2877,7 @@ async function saveBenPostes(){
   const res=await Promise.all(ops);
   const err=res.find(r=>r.error);
   if(err)return toast(err.error.message,true);
-  closeModal();toast('Postes enregistrés');loadBenevoles();
+  closeModal();toast('Postes enregistrés');openBenGestion();
 }
 
 /* ---- Admin : gestion des créneaux ---- */
@@ -2927,7 +2922,7 @@ async function saveBenCreneaux(){
   const res=await Promise.all(ops);
   const err=res.find(r=>r.error);
   if(err)return toast(err.error.message,true);
-  closeModal();toast('Créneaux enregistrés');loadBenevoles();
+  closeModal();toast('Créneaux enregistrés');openBenGestion();
 }
 
 /* ---- Exports CSV ---- */
@@ -4474,7 +4469,7 @@ function adminTab(tab){
       <div class="adm-links">
         <button class="adm-link" onclick="go('calendrier')">📅 Calendrier &amp; inscriptions</button>
         <button class="adm-link" onclick="go('ouverture')">🔑 Ouvertures &amp; travaux</button>
-        <button class="adm-link" onclick="go('benevoles')">🙋 Bénévoles</button>
+        <button class="adm-link" onclick="openBenGestion()">🙋 Bénévoles (gestion)</button>
         <button class="adm-link" onclick="go('resultats')">🏁 Résultats &amp; pilotes</button>
         <button class="adm-link" onclick="go('photos')">📸 Photos</button>
         <button class="adm-link" onclick="go('partenaires')">🤝 Partenaires</button>
