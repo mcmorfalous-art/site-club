@@ -242,6 +242,19 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .ben-names li:last-child{border-bottom:0}
 .ben-cr-mini{display:block;font-size:.74rem;color:var(--ink-dim)}
 .ben-empty-poste{font-size:.85rem;color:var(--ink-dim);font-style:italic;margin:4px 0 0}
+/* ===== Admin bénévoles : accordéon par poste ===== */
+.ben-adm-poste{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.ben-adm-poste>summary{list-style:none;cursor:pointer;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;user-select:none}
+.ben-adm-poste>summary::-webkit-details-marker{display:none}
+.ben-adm-poste>summary:hover{background:var(--surface-2)}
+.ben-adm-poste>summary::before{content:'▸';color:var(--accent);font-weight:700;margin-right:4px;transition:transform .15s}
+.ben-adm-poste[open]>summary::before{transform:rotate(90deg)}
+.ben-adm-title{font-family:var(--font-disp);font-weight:700;color:var(--ink);font-size:1rem;flex:1}
+.ben-adm-meta{font-size:.82rem;color:var(--ink-dim);display:flex;align-items:center;gap:8px}
+.ben-adm-badge{font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase}
+.ben-adm-badge.att{background:rgba(193,39,45,.18);color:var(--hot)}
+.ben-adm-badge.ok{background:rgba(76,175,80,.18);color:#4caf50}
+.ben-adm-body{padding:6px 12px 12px}
 /* Upload multiple de photos */
 .ph-bar{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
 .ph-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .25s ease}
@@ -2610,17 +2623,26 @@ async function submitBenevole(){
   if(isAdmin)loadBenevoles();
 }
 
-/* ---- Admin : liste des inscriptions ---- */
+/* ---- Admin : liste des inscriptions (groupée + repliable) ---- */
 function renderBenAdminList(){
   const cont=$('#benAdminList'); if(!cont)return;
   if(!_benInscrs.length){cont.innerHTML=emptyState('Aucune inscription pour le moment.');return;}
   // groupé par poste
   const byPoste={};
   _benInscrs.forEach(i=>{const k=i.poste_nom||'(sans poste)';(byPoste[k]=byPoste[k]||[]).push(i);});
-  cont.innerHTML=Object.keys(byPoste).sort().map(poste=>`
-    <h3 style="margin:18px 0 8px;color:var(--accent)">${esc(poste)} <span style="font-size:.8em;color:var(--ink-dim)">(${byPoste[poste].length})</span></h3>
-    ${byPoste[poste].map(benAdminRow).join('')}
-  `).join('');
+  cont.innerHTML=Object.keys(byPoste).sort().map(poste=>{
+    const gens=byPoste[poste];
+    const nAtt=gens.filter(g=>g.statut!=='valide').length;
+    const badge=nAtt>0?`<span class="ben-adm-badge att">${nAtt} en attente</span>`:`<span class="ben-adm-badge ok">à jour</span>`;
+    // ouvert par défaut s'il y a des inscriptions en attente
+    return `<details class="ben-adm-poste" ${nAtt>0?'open':''}>
+      <summary>
+        <span class="ben-adm-title">${esc(poste)}</span>
+        <span class="ben-adm-meta">${gens.length} inscrit${gens.length>1?'s':''} ${badge}</span>
+      </summary>
+      <div class="ben-adm-body">${gens.map(benAdminRow).join('')}</div>
+    </details>`;
+  }).join('');
 }
 function benAdminRow(i){
   const valide=i.statut==='valide';
@@ -2649,16 +2671,21 @@ async function validerBenevole(id){
   const {error}=await sb.from('benevoles_inscriptions').update({statut:'valide',valide_le:new Date().toISOString()}).eq('id',id);
   if(error)return toast(error.message,true);
   toast('Bénévole validé');
-  // mail auto via Edge Function (si email présent)
+  // mail auto via Edge Function (fetch direct = plus robuste que invoke)
   if(i.email){
     try{
-      const {error:me}=await sb.functions.invoke('mail-benevole',{body:{
-        email:i.email, nom:i.nom, prenom:i.prenom, poste:i.poste_nom||'',
-        creneaux:(Array.isArray(i.creneaux)?i.creneaux:[]).map(benCrLabel)
-      }});
-      if(me) toast('Validé, mais le mail a échoué : '+me.message, true);
-      else toast('Mail de confirmation envoyé ✓');
-    }catch(e){ toast('Validé (mail non envoyé)', true); }
+      const resp=await fetch(`${SUPABASE_URL}/functions/v1/mail-benevole`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${SUPABASE_KEY}`,'apikey':SUPABASE_KEY},
+        body:JSON.stringify({
+          email:i.email, nom:i.nom, prenom:i.prenom, poste:i.poste_nom||'',
+          creneaux:(Array.isArray(i.creneaux)?i.creneaux:[]).map(benCrLabel)
+        })
+      });
+      const txt=await resp.text();
+      if(resp.ok) toast('Mail de confirmation envoyé ✓');
+      else toast('Validé, mais mail échoué : '+txt.slice(0,120), true);
+    }catch(e){ toast('Validé, mais mail non envoyé : '+e.message, true); }
   }
   loadBenevoles();
 }
