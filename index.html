@@ -2773,13 +2773,43 @@ function benPosteOuvert(p){
   const b=p.besoins||{};
   return _benCreneaux.some(c=>(parseInt(b[c.id],10)||0)>0);
 }
-/* Liste des cases à cocher des créneaux OUVERTS pour un poste donné */
+/* Liste des cases à cocher des créneaux OUVERTS pour un poste donné,
+   groupés par jour, avec un raccourci "Journée entière" (matin + après-midi) */
 function benFormCreneaux(posteId){
   const p=_benPostes.find(x=>String(x.id)===String(posteId));
   const b=(p&&p.besoins)||{};
   const ouverts=_benCreneaux.filter(c=>(parseInt(b[c.id],10)||0)>0);
   if(!ouverts.length)return `<p style="color:var(--ink-dim);font-size:.85rem;margin:4px 0">Aucun créneau ouvert pour ce poste.</p>`;
-  return ouverts.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('');
+  // groupe par jour (1er mot du label)
+  const groupes={}, ordre=[];
+  ouverts.forEach(c=>{const j=(c.label||'').trim().split(/\s+/)[0]||'';if(!groupes[j]){groupes[j]=[];ordre.push(j);}groupes[j].push(c);});
+  return ordre.map(jour=>{
+    const list=groupes[jour];
+    const matin=list.find(c=>/matin/i.test(c.label));
+    const aprem=list.find(c=>/apr[eè]s|aprem|a\.?-?m/i.test(c.label));
+    const lignes=list.map(c=>`<label class="ben-cr-lbl" style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" data-jour="${esc(jour)}" onchange="benSyncJournee('${esc(jour)}')" style="width:auto"> ${esc(c.label)}</label>`).join('');
+    // raccourci journée entière seulement si matin ET après-midi ouverts
+    const journee=(matin&&aprem)
+      ? `<label class="ben-cr-journee" style="display:flex;gap:8px;align-items:center;margin-top:2px"><input type="checkbox" class="ben-journee" data-jour="${esc(jour)}" data-matin="${matin.id}" data-aprem="${aprem.id}" onchange="benToggleJournee(this)" style="width:auto"> <strong>Journée entière</strong> <span style="color:var(--ink-dim);font-size:.8rem">(matin + après-midi)</span></label>`
+      : '';
+    return `<div class="ben-form-day" style="margin-bottom:10px"><div style="font-size:.78rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${esc(jour)}</div>${lignes}${journee}</div>`;
+  }).join('');
+}
+/* Case "Journée entière" : coche/décoche matin + après-midi du jour */
+function benToggleJournee(el){
+  const on=el.checked;
+  [el.dataset.matin,el.dataset.aprem].forEach(id=>{
+    const cb=document.querySelector('.ben-cr[value="'+id+'"]');
+    if(cb)cb.checked=on;
+  });
+}
+/* Si matin + après-midi sont cochés à la main, la case "Journée entière" suit */
+function benSyncJournee(jour){
+  const j=document.querySelector('.ben-journee[data-jour="'+jour+'"]');
+  if(!j)return;
+  const m=document.querySelector('.ben-cr[value="'+j.dataset.matin+'"]');
+  const a=document.querySelector('.ben-cr[value="'+j.dataset.aprem+'"]');
+  j.checked=!!(m&&m.checked&&a&&a.checked);
 }
 /* Formulaire d'inscription (dans une popup), pour un poste déjà choisi */
 function benFormMarkup(posteId){
