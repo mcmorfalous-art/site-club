@@ -267,6 +267,7 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .ben-day-block:last-child{margin-bottom:0}
 .ben-day-title{margin:0 0 8px;font-size:.95rem;color:var(--accent);font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line);padding-bottom:5px}
 .ben-cr-row{padding:9px 0;border-bottom:1px dotted var(--line)}
+.ben-cr-closed{opacity:.55}
 .ben-cr-row:last-child{border-bottom:0}
 .ben-cr-line{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:.9rem;margin-bottom:6px;flex-wrap:wrap}
 .ben-cr-slot{font-weight:600;color:var(--ink)}
@@ -2678,15 +2679,21 @@ function openBenPosteDetail(posteId){
       const besoin=parseInt(besoins[c.id],10)||0;
       const insc=parCr[c.id]||[];
       const pris=insc.length;
-      const col=benCol(pris,besoin);
-      const reste=besoin?Math.max(0,besoin-pris):null;
-      const pct=besoin?Math.min(100,Math.round(pris/besoin*100)):(pris>0?100:0);
       // on retire le jour du label pour ne garder que Matin / Après-midi / Journée
       const sousLabel=(c.label||'').replace(new RegExp('^'+jour+'\\s*','i'),'')||c.label;
-      const dispo = besoin
-        ? (reste>0?`<span style="color:${col};font-weight:700">${reste} place${reste>1?'s':''} libre${reste>1?'s':''}</span> <span style="color:var(--ink-dim)">· ${pris}/${besoin}</span>`
-                 :`<span style="color:#4caf50;font-weight:700">Complet ✓</span> <span style="color:var(--ink-dim)">· ${pris}/${besoin}</span>`)
-        : `<span style="color:var(--ink-dim)">${pris} inscrit${pris>1?'s':''}</span>`;
+      // créneau fermé : aucun besoin défini (0) → pas d'inscription possible
+      if(besoin<=0){
+        return `<div class="ben-cr-row ben-cr-closed">
+          <div class="ben-cr-line"><span class="ben-cr-slot">${esc(sousLabel)}</span><span style="color:var(--ink-dim);font-weight:600">Fermé</span></div>
+          <div class="ben-cr-noms"><span style="color:var(--ink-dim);font-size:.82rem;font-style:italic">Pas de bénévole recherché sur ce créneau</span></div>
+        </div>`;
+      }
+      const col=benCol(pris,besoin);
+      const reste=Math.max(0,besoin-pris);
+      const pct=Math.min(100,Math.round(pris/besoin*100));
+      const dispo = reste>0
+        ? `<span style="color:${col};font-weight:700">${reste} place${reste>1?'s':''} libre${reste>1?'s':''}</span> <span style="color:var(--ink-dim)">· ${pris}/${besoin}</span>`
+        : `<span style="color:#4caf50;font-weight:700">Complet ✓</span> <span style="color:var(--ink-dim)">· ${pris}/${besoin}</span>`;
       const noms=pris
         ? `<div class="ben-cr-noms">${insc.map(g=>`<span class="ben-chip">${esc(g.prenom)} ${esc(g.nom)}</span>`).join('')}</div>`
         : `<div class="ben-cr-noms"><span style="color:var(--ink-dim);font-size:.82rem">Personne pour l'instant — place à prendre 🙌</span></div>`;
@@ -2698,29 +2705,54 @@ function openBenPosteDetail(posteId){
     }).join('');
     return `<div class="ben-day-block"><h4 class="ben-day-title">${esc(jour)}</h4>${lignes}</div>`;
   }).join('');
+  // le poste accepte-t-il des inscriptions ? (au moins un créneau avec besoin > 0)
+  const aDesPlaces=_benCreneaux.some(c=>(parseInt(besoins[c.id],10)||0)>0);
+  const pied=aDesPlaces
+    ? `<div style="margin-top:16px;text-align:center"><button class="btn btn-primary" onclick="openBenFormModal('${p.id}')">M'inscrire à ce poste</button></div>`
+    : `<div style="margin-top:16px;text-align:center;color:var(--ink-dim);font-size:.88rem">Aucun bénévole recherché sur ce poste pour le moment.</div>`;
   const body=`
-    <p style="color:var(--ink-dim);margin:-4px 0 14px">Places restantes par créneau. Pour t'inscrire, utilise le formulaire en haut de la page en choisissant ce poste.</p>
+    <p style="color:var(--ink-dim);margin:-4px 0 14px">Places restantes par créneau.</p>
     ${bloc}
-    <div style="margin-top:16px;text-align:center">
-      <button class="btn btn-primary" onclick="openBenFormModal('${p.id}')">M'inscrire à ce poste</button>
-    </div>`;
+    ${pied}`;
   openModal('🧑‍🔧 '+p.nom,body);
 }
 
+/* Un poste a-t-il au moins un créneau ouvert (besoin > 0) ? */
+function benPosteOuvert(p){
+  const b=p.besoins||{};
+  return _benCreneaux.some(c=>(parseInt(b[c.id],10)||0)>0);
+}
+/* Liste des cases à cocher des créneaux OUVERTS pour un poste donné */
+function benFormCreneaux(posteId){
+  const p=_benPostes.find(x=>String(x.id)===String(posteId));
+  const b=(p&&p.besoins)||{};
+  const ouverts=_benCreneaux.filter(c=>(parseInt(b[c.id],10)||0)>0);
+  if(!ouverts.length)return `<p style="color:var(--ink-dim);font-size:.85rem;margin:4px 0">Aucun créneau ouvert pour ce poste.</p>`;
+  return ouverts.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('');
+}
+/* Recharge les créneaux quand on change de poste dans le formulaire */
+function benFormPosteChange(){
+  const sel=$('#ben-poste'); const box=$('#ben-cr-box');
+  if(sel&&box)box.innerHTML=benFormCreneaux(sel.value);
+}
 /* Formulaire d'inscription (dans une popup), poste pré-sélectionné possible */
 function benFormMarkup(preselect){
-  const postesActifs=_benPostes.filter(p=>p.actif!==false);
+  const postesOuverts=_benPostes.filter(p=>p.actif!==false && benPosteOuvert(p));
+  if(!postesOuverts.length){
+    return `<p style="line-height:1.6">Aucun poste n'est ouvert aux inscriptions pour le moment. Reviens bientôt !</p>`;
+  }
+  const sel=(preselect&&postesOuverts.some(p=>String(p.id)===String(preselect)))?preselect:postesOuverts[0].id;
   return `
     <div class="field"><label>Nom *</label><input id="ben-nom" type="text" placeholder="Ton nom"></div>
     <div class="field"><label>Prénom *</label><input id="ben-prenom" type="text" placeholder="Ton prénom"></div>
     <div class="field"><label>E-mail</label><input id="ben-email" type="email" placeholder="ton@mail.fr"></div>
     <div class="field"><label>Téléphone</label><input id="ben-tel" type="tel" placeholder="06 ..."></div>
     <div class="field"><label>Poste souhaité *</label>
-      <select id="ben-poste">${postesActifs.map(p=>`<option value="${p.id}"${String(p.id)===String(preselect)?' selected':''}>${esc(p.nom)}</option>`).join('')}</select>
+      <select id="ben-poste" onchange="benFormPosteChange()">${postesOuverts.map(p=>`<option value="${p.id}"${String(p.id)===String(sel)?' selected':''}>${esc(p.nom)}</option>`).join('')}</select>
     </div>
     <div class="field"><label>Mes disponibilités *</label>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-        ${_benCreneaux.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('')}
+      <div id="ben-cr-box" style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        ${benFormCreneaux(sel)}
       </div>
     </div>
     <div class="field"><label>Commentaire (optionnel)</label><textarea id="ben-comm" placeholder="Une précision ?"></textarea></div>
@@ -2733,18 +2765,32 @@ function openBenFormModal(preselect){
 async function submitBenevole(){
   const nom=$('#ben-nom').value.trim(), prenom=$('#ben-prenom').value.trim();
   const email=$('#ben-email').value.trim()||null, tel=$('#ben-tel').value.trim()||null;
-  const posteId=$('#ben-poste').value;
-  const creneaux=$$('.ben-cr').filter(c=>c.checked).map(c=>c.value);
+  const posteSel=$('#ben-poste');
+  const posteId=posteSel?posteSel.value:null;
+  if(!posteId)return toast('Aucun poste disponible',true);
   const comm=$('#ben-comm').value.trim()||null;
   if(!nom||!prenom)return toast('Nom et prénom requis',true);
-  if(!creneaux.length)return toast('Coche au moins un créneau',true);
-  const poste=_benPostes.find(p=>p.id===posteId);
+  const poste=_benPostes.find(p=>String(p.id)===String(posteId));
+  // garde-fou : on ne retient que les créneaux réellement ouverts (besoin > 0) pour ce poste
+  const besoins=(poste&&poste.besoins)||{};
+  const creneaux=$$('.ben-cr').filter(c=>c.checked).map(c=>c.value).filter(cid=>{
+    const cr=_benCreneaux.find(x=>String(x.id)===String(cid));
+    return cr && (parseInt(besoins[cr.id],10)||0)>0;
+  });
+  if(!creneaux.length)return toast('Coche au moins un créneau ouvert',true);
   const {error}=await sb.from('benevoles_inscriptions').insert({
     nom,prenom,email,telephone:tel,poste_id:posteId,poste_nom:poste?poste.nom:null,
     creneaux,commentaire:comm,statut:'en_attente'
   });
   if(error)return toast(error.message,true);
-  openModal('Merci !',`<p style="line-height:1.7">Ton inscription comme bénévole a bien été enregistrée. Le bureau la validera prochainement${email?' et tu recevras un mail de confirmation':''}.</p><p style="margin-top:12px">Un grand merci pour ton engagement ! 🤝</p>`);
+  openModal('Merci ! 🤝',`
+    <p style="line-height:1.7">Ton inscription comme bénévole a bien été enregistrée. Le bureau la validera prochainement${email?' et tu recevras un mail de confirmation':''}.</p>
+    <div style="background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.4);border-left:3px solid #4caf50;border-radius:10px;padding:14px 16px;margin:16px 0">
+      <p style="margin:0;line-height:1.6"><strong style="color:#6fd47f">On compte sur vous !</strong><br>Merci de bien <strong>tenir votre engagement</strong> le jour J : chaque bénévole présent, c'est l'épreuve qui tourne. 🙌</p>
+    </div>
+    <div style="text-align:center;margin-top:8px">
+      <button class="btn btn-primary" onclick="closeModal()">OK, c'est noté</button>
+    </div>`);
   // reset
   ['ben-nom','ben-prenom','ben-email','ben-tel','ben-comm'].forEach(id=>{const e=$('#'+id);if(e)e.value='';});
   $$('.ben-cr').forEach(c=>c.checked=false);
