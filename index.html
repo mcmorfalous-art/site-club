@@ -58,6 +58,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,26,36,.92);backdrop-
 .nav-dropdown.open .nav-dd-menu{display:block}
 .nav-dd-menu button{display:block;width:100%;text-align:left;white-space:nowrap;font-size:.95rem!important;padding:9px 12px!important}
 .burger{display:none;margin-left:auto;font-size:1.6rem;color:var(--ink)}
+.nav-sec-label{display:none}
 main{max-width:var(--maxw);margin:0 auto;padding:0 20px}
 #backBtn{display:none;align-items:center;gap:6px;margin:16px 0 0;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:.9rem;padding:8px 16px;border-radius:8px;cursor:pointer;transition:transform .12s,border-color .12s}
 #backBtn:hover{transform:translateX(-3px);border-color:var(--accent);color:var(--accent)}
@@ -204,7 +205,7 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .grid-2{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 .grid-4{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 /* Tuiles accueil */
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:36px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:36px;align-items:start}
 /* Bande prochain RDV */
 .next-rdv{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#17415a,#102f42);border:1px solid var(--accent);border-radius:10px;padding:14px 18px;margin-bottom:20px;transition:transform .15s,box-shadow .15s;overflow:hidden}
 .next-rdv:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(92,198,232,.18)}
@@ -217,6 +218,11 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .tile .ico{font-size:1.7rem;line-height:1;margin-bottom:6px}
 .tile h3{font-family:var(--font-disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;color:var(--ink);display:flex;align-items:center;gap:6px}
 .tile p{color:var(--ink-dim);font-size:.86rem;margin:0}
+/* Tuiles secondaires compactes : icône à gauche, titre + sous-titre à droite */
+.tile-sm{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:12px;row-gap:0;padding:12px 14px}
+.tile-sm .ico{grid-row:1/3;font-size:1.25rem;margin-bottom:0;align-self:center}
+.tile-sm h3{font-size:.95rem;align-self:end}
+.tile-sm p{font-size:.74rem;align-self:start}
 .tile.hot{border-left-color:var(--hot);background:#1a2320}
 .tile.hot h3{color:var(--ink)}
 /* Tuiles Ouverture (cyan) et Travaux (ambre) — accès mis en avant */
@@ -514,14 +520,24 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   .hero-stats{gap:20px;margin-top:16px}
   .stat .n{font-size:1.8rem}
   .tiles{grid-template-columns:1fr 1fr}
-  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:var(--bg);border-bottom:1px solid var(--line);padding:12px;gap:2px}
+  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:var(--bg);border-bottom:1px solid var(--line);padding:14px 12px 18px;gap:2px;max-height:calc(100vh - 64px);overflow-y:auto}
   .nav-links.open{display:flex}
-  .nav-links button{width:100%;text-align:left;padding:13px}
+  /* toutes les entrées du menu : lignes neutres et aérées */
+  .nav-links button{width:100%;text-align:left;padding:13px 14px;font-size:1rem!important;font-weight:600!important;color:var(--ink)!important;background:transparent!important;border:none!important;border-radius:10px}
+  .nav-links button:hover,.nav-links button:active{background:var(--surface-2)!important;color:var(--ink)!important}
+  .nav-links button.active{color:var(--accent)!important;background:var(--surface-2)!important}
   .burger{display:block}
-  /* dropdown "Le club" en liste sur mobile */
+  /* étiquettes de section dans le menu mobile */
+  .nav-sec-label{display:block;align-self:stretch;width:100%;text-align:left;font-family:var(--font-disp);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);padding:16px 14px 4px;margin-top:6px;border-top:1px solid var(--line)}
+  .nav-sec-label:first-child{border-top:none;margin-top:0;padding-top:4px}
+  /* "Le club" : plus de bouton déroulant, on affiche la liste directement */
   .nav-dropdown{width:100%}
-  .nav-dd-menu{position:static;min-width:0;box-shadow:none;background:var(--surface-2);margin-top:4px;padding:4px}
-  .nav-dd-menu button{padding:11px 14px!important}
+  .nav-dd-toggle{display:none!important}
+  .nav-dd-menu{display:block!important;position:static;min-width:0;box-shadow:none;background:transparent;border:none;margin:0;padding:0}
+  .nav-dd-menu button{padding:12px 14px!important}
+  /* on neutralise les gros boutons colorés dans le menu */
+  .nav-links .nav-open,.nav-links .nav-travaux,.nav-links .nav-install,.nav-links .nav-notif,.nav-links .nav-cta{background:transparent!important;color:var(--ink)!important;font-weight:600!important}
+  .nav-links .nav-bureau{border:none!important}
   .footer-inner{flex-direction:column}
   .next-rdv{flex-wrap:wrap;gap:8px}
   .next-rdv .nr-content{white-space:normal;font-size:.95rem;flex-basis:100%}
@@ -715,6 +731,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
       <div class="nav-dropdown" id="navClub">
         <button class="nav-dd-toggle" onclick="toggleNavClub(event)">Le club <span class="dd-arrow">▾</span></button>
         <div class="nav-dd-menu" id="navClubMenu">
+          <span class="nav-sec-label">Le club</span>
           <button data-page="calendrier" onclick="go('calendrier')">📅 Calendrier</button>
           <button data-page="actualites" onclick="go('actualites')">📰 Actualités</button>
           <button data-page="histoire" onclick="go('histoire')">🐺 Notre histoire</button>
@@ -725,9 +742,11 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
           <button data-page="aide" onclick="go('aide')">❓ Aide</button>
         </div>
       </div>
+      <span class="nav-sec-label nav-sec-terrain">Le terrain</span>
+      <button class="nav-open" data-page="ouverture" onclick="go('ouverture')">🔑 Ouverture</button>
+      <button class="nav-travaux" data-page="travaux" onclick="go('travaux')">🔧 Travaux</button>
+      <span class="nav-sec-label nav-sec-plus">En plus</span>
       <button onclick="openExternal('lien_prono')">🏆 Prono ↗</button>
-      <button class="nav-open" data-page="ouverture" onclick="go('ouverture')">Ouverture</button>
-      <button class="nav-travaux" data-page="travaux" onclick="go('travaux')">Travaux</button>
       <button id="installBtnNav" class="nav-install" onclick="installApp()" style="display:none">📲 Installer</button>
       <button id="notifBtnNav" class="nav-notif" onclick="subscribePush()" style="display:none">🔔 Notifications</button>
       <button id="btnBureau" class="nav-bureau" onclick="bureauClick()">🔒 Bureau</button>
@@ -803,28 +822,28 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
     <button class="tile" onclick="go('actualites')">
       <span class="ico">📰</span><h3>Actus</h3><p>Vie du club</p>
     </button>
-    <button class="tile" onclick="go('resultats')">
+    <button class="tile tile-sm" onclick="go('resultats')">
       <span class="ico">🏁</span><h3>Résultats</h3><p>Nos pilotes en course</p>
     </button>
-    <button class="tile" onclick="go('photos')">
+    <button class="tile tile-sm" onclick="go('photos')">
       <span class="ico">📸</span><h3>Photos</h3><p>Albums du club</p>
     </button>
-    <button class="tile" id="tileBoutique" onclick="go('boutique')">
+    <button class="tile tile-sm" id="tileBoutique" onclick="go('boutique')">
       <span class="ico">🛒</span><h3>Boutique</h3><p>Aux couleurs du club</p>
     </button>
-    <button class="tile" onclick="go('bureau')">
+    <button class="tile tile-sm" onclick="go('bureau')">
       <span class="ico">👥</span><h3>Le bureau</h3><p>L'équipe du club</p>
     </button>
-    <button class="tile" onclick="go('licence')">
+    <button class="tile tile-sm" onclick="go('licence')">
       <span class="ico">📋</span><h3>Licence</h3><p>Rejoindre le club</p>
     </button>
-    <button class="tile" onclick="go('participer')">
+    <button class="tile tile-sm" onclick="go('participer')">
       <span class="ico">💡</span><h3>La parole aux membres</h3><p>Partage tes idées</p>
     </button>
-    <button class="tile" onclick="go('partenaires')">
+    <button class="tile tile-sm" onclick="go('partenaires')">
       <span class="ico">🤝</span><h3>Partenaires</h3><p>Ils nous soutiennent</p>
     </button>
-    <button class="tile hot" id="tileProno" onclick="openExternal('lien_prono')">
+    <button class="tile hot tile-sm" id="tileProno" onclick="openExternal('lien_prono')">
       <span class="ico">🏆</span><h3>Prono du club</h3><p>Joue tes pronostics</p>
     </button>
   </div>
