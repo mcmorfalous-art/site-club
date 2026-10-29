@@ -111,6 +111,22 @@ h2.section-title{font-family:var(--font-disp);font-weight:800;text-transform:upp
 .insc-filters button.insc-mail:hover{background:var(--accent);color:#0a1a24}
 .insc-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px 16px;cursor:pointer;color:var(--ink);font-family:var(--font-disp);font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.02em}
 .insc-toggle:hover{border-color:var(--accent)}
+/* ===== AIDE / MODE D'EMPLOI ===== */
+.aide-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.aide-tabs button{font-family:var(--font-disp);font-weight:700;font-size:.92rem;padding:9px 18px;border-radius:var(--radius);color:var(--ink-dim);border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.aide-tabs button.active{background:var(--accent);border-color:var(--accent);color:#0a1a24}
+.aide-body{max-width:760px}
+.aide-sec{margin-bottom:26px}
+.aide-h2{font-size:1.25rem;margin:0 0 4px;color:var(--ink);font-family:var(--font-disp)}
+.aide-emo{margin-right:9px}
+.aide-lead{color:var(--ink-dim);font-size:.9rem;margin:0 0 12px;border-bottom:2px solid var(--accent);padding-bottom:7px}
+.aide-step{display:flex;gap:12px;margin:9px 0}
+.aide-num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#0a1a24;font-family:var(--font-disp);font-weight:800;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.aide-txt{line-height:1.55;font-size:.93rem}
+.aide-txt b{color:var(--ink)}
+.aide-note{border-radius:10px;padding:11px 15px;margin:12px 0;font-size:.88rem;line-height:1.5}
+.aide-note.tip{background:rgba(79,208,230,.1);border:1px solid rgba(79,208,230,.35);border-left:3px solid var(--accent)}
+.aide-note.warn{background:rgba(224,145,46,.1);border:1px solid rgba(224,145,46,.4);border-left:3px solid var(--amber)}
 /* ===== LIGHTBOX PHOTOS ===== */
 .lightbox{position:fixed;inset:0;z-index:2000;background:rgba(5,14,20,.94);display:none;align-items:center;justify-content:center;padding:20px}
 .lightbox.open{display:flex}
@@ -706,6 +722,7 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
           <button data-page="benevoles" onclick="go('benevoles')">🙋 Bénévoles</button>
           <button data-page="partenaires" onclick="go('partenaires')">🤝 Partenaires</button>
           <button data-page="sondages" onclick="go('sondages')">🗳️ Sondages</button>
+          <button data-page="aide" onclick="go('aide')">❓ Aide</button>
         </div>
       </div>
       <button onclick="openExternal('lien_prono')">🏆 Prono ↗</button>
@@ -938,6 +955,14 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   <h1 class="title">Mentions légales</h1>
   <div id="mentionsContent" style="margin-top:24px;max-width:70ch"><div class="loading">Chargement…</div></div>
   <button class="btn btn-ghost admin-only btn-sm" style="margin-top:20px" onclick="openPageForm('mentions-legales','Mentions légales')">Modifier cette page</button>
+</section>
+
+<!-- AIDE / MODE D'EMPLOI -->
+<section class="page" id="page-aide">
+  <div class="eyebrow">Mode d'emploi</div>
+  <h1 class="title">Aide &amp; tutoriel</h1>
+  <p class="lead" style="margin-bottom:22px">Comment utiliser le site, pas à pas.</p>
+  <div id="aideContent"><div class="loading">Chargement…</div></div>
 </section>
 
 <!-- OUVERTURE -->
@@ -1426,6 +1451,7 @@ async function applySession(session){
   // re-rend la page courante si son contenu admin est construit en JS (ex : bénévoles)
   // pour que le panneau de gestion apparaisse/disparaisse dès la connexion/déconnexion
   if(_currentPage==='benevoles' && typeof loadBenevoles==='function') loadBenevoles();
+  if(_currentPage==='aide' && typeof loadAide==='function') loadAide();
 }
 function openAuth(){
   if(currentUser){
@@ -1531,7 +1557,7 @@ const loaders={
   resultats:loadResultats, photos:loadAlbums, bureau:loadBureau,
   partenaires:loadPartenaires, histoire:loadHistoire, licence:loadLicence,
   ouverture:loadOuverture, travaux:loadTravaux, participer:loadParticiper, admin:loadAdmin, benevoles:loadBenevoles,
-  mentions:loadMentions, boutique:loadBoutique, sondages:loadSondages,
+  mentions:loadMentions, boutique:loadBoutique, sondages:loadSondages, aide:loadAide,
 };
 /* ============ SONDAGES ============ */
 // clé de vote par appareil (localStorage) pour empêcher les votes multiples
@@ -2730,46 +2756,45 @@ function benFormCreneaux(posteId){
   if(!ouverts.length)return `<p style="color:var(--ink-dim);font-size:.85rem;margin:4px 0">Aucun créneau ouvert pour ce poste.</p>`;
   return ouverts.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ben-cr" value="${c.id}" style="width:auto"> ${esc(c.label)}</label>`).join('');
 }
-/* Recharge les créneaux quand on change de poste dans le formulaire */
-function benFormPosteChange(){
-  const sel=$('#ben-poste'); const box=$('#ben-cr-box');
-  if(sel&&box)box.innerHTML=benFormCreneaux(sel.value);
-}
-/* Formulaire d'inscription (dans une popup), poste pré-sélectionné possible */
-function benFormMarkup(preselect){
-  const postesOuverts=_benPostes.filter(p=>p.actif!==false && benPosteOuvert(p));
-  if(!postesOuverts.length){
-    return `<p style="line-height:1.6">Aucun poste n'est ouvert aux inscriptions pour le moment. Reviens bientôt !</p>`;
+/* Formulaire d'inscription (dans une popup), pour un poste déjà choisi */
+function benFormMarkup(posteId){
+  const p=_benPostes.find(x=>String(x.id)===String(posteId));
+  if(!p || !benPosteOuvert(p)){
+    return `<p style="line-height:1.6">Ce poste n'est pas ouvert aux inscriptions pour le moment.</p>`;
   }
-  const sel=(preselect&&postesOuverts.some(p=>String(p.id)===String(preselect)))?preselect:postesOuverts[0].id;
   return `
+    <p style="margin:-4px 0 12px;color:var(--ink-dim)">Poste : <strong style="color:var(--accent)">${esc(p.nom)}</strong></p>
+    <input type="hidden" id="ben-poste" value="${p.id}">
     <div class="field"><label>Nom *</label><input id="ben-nom" type="text" placeholder="Ton nom"></div>
     <div class="field"><label>Prénom *</label><input id="ben-prenom" type="text" placeholder="Ton prénom"></div>
-    <div class="field"><label>E-mail</label><input id="ben-email" type="email" placeholder="ton@mail.fr"></div>
-    <div class="field"><label>Téléphone</label><input id="ben-tel" type="tel" placeholder="06 ..."></div>
-    <div class="field"><label>Poste souhaité *</label>
-      <select id="ben-poste" onchange="benFormPosteChange()">${postesOuverts.map(p=>`<option value="${p.id}"${String(p.id)===String(sel)?' selected':''}>${esc(p.nom)}</option>`).join('')}</select>
+    <div class="field"><label>E-mail *</label><input id="ben-email" type="email" placeholder="ton@mail.fr"></div>
+    <div class="field"><label>Téléphone *</label><input id="ben-tel" type="tel" placeholder="06 ..."></div>
+    <div class="aide-note warn" style="margin:4px 0 14px;font-size:.85rem">
+      <b>Ces informations sont obligatoires.</b> Elles nous servent à t'inviter aux événements du club de l'année en cours. Sans e-mail ni téléphone, nous ne pourrons pas te transmettre les infos, et le club ne pourra pas en être tenu responsable.
     </div>
     <div class="field"><label>Mes disponibilités *</label>
       <div id="ben-cr-box" style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-        ${benFormCreneaux(sel)}
+        ${benFormCreneaux(p.id)}
       </div>
     </div>
     <div class="field"><label>Commentaire (optionnel)</label><textarea id="ben-comm" placeholder="Une précision ?"></textarea></div>
     <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="submitBenevole()">Valider mon inscription</button>`;
 }
-function openBenFormModal(preselect){
-  openModal('🙋 Inscription bénévole',benFormMarkup(preselect));
+function openBenFormModal(posteId){
+  openModal('🙋 Inscription bénévole',benFormMarkup(posteId));
 }
 
 async function submitBenevole(){
   const nom=$('#ben-nom').value.trim(), prenom=$('#ben-prenom').value.trim();
-  const email=$('#ben-email').value.trim()||null, tel=$('#ben-tel').value.trim()||null;
+  const email=$('#ben-email').value.trim(), tel=$('#ben-tel').value.trim();
   const posteSel=$('#ben-poste');
   const posteId=posteSel?posteSel.value:null;
   if(!posteId)return toast('Aucun poste disponible',true);
   const comm=$('#ben-comm').value.trim()||null;
   if(!nom||!prenom)return toast('Nom et prénom requis',true);
+  if(!email)return toast('E-mail requis (pour recevoir les infos du club)',true);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return toast('E-mail invalide',true);
+  if(!tel)return toast('Téléphone requis (pour recevoir les infos du club)',true);
   const poste=_benPostes.find(p=>String(p.id)===String(posteId));
   // garde-fou : on ne retient que les créneaux réellement ouverts (besoin > 0) pour ce poste
   const besoins=(poste&&poste.besoins)||{};
@@ -3284,6 +3309,113 @@ async function duplicatePartners(targetYear){
   toast(`✓ ${checked.length} partenaire(s) reporté(s) vers ${targetYear}`);
   _partYear=targetYear;loadPartenaires();
 }
+
+/* ============ AIDE / MODE D'EMPLOI ============ */
+let _aideTab='membre';
+function aideStep(n,html){return `<div class="aide-step"><div class="aide-num">${n}</div><div class="aide-txt">${html}</div></div>`;}
+function aideSec(emo,titre,lead,steps,extra){
+  return `<div class="aide-sec">
+    <h2 class="aide-h2"><span class="aide-emo">${emo}</span>${titre}</h2>
+    <p class="aide-lead">${lead}</p>
+    ${steps.map((s,i)=>aideStep(i+1,s)).join('')}
+    ${extra||''}
+  </div>`;
+}
+function aideNote(type,html){return `<div class="aide-note ${type}">${html}</div>`;}
+function aideMembreHTML(){
+  return `
+  ${aideNote('tip',`<b>Pas besoin de compte pour les membres.</b> Le site est ouvert à tous : tu peux tout consulter et t'inscrire librement. La connexion n'est réservée qu'au bureau.`)}
+  ${aideSec('📲','Installer le site comme une application','Pour l\'avoir sur ton écran d\'accueil et recevoir les notifications.',[
+    `Ouvre <b>mc-morfalous.fr</b> dans ton navigateur (Chrome sur Android, Safari sur iPhone).`,
+    `<b>Android :</b> une bannière « Ajouter à l'écran d'accueil » apparaît, ou menu <b>⋮</b> → « Ajouter à l'écran d'accueil ».`,
+    `<b>iPhone :</b> bouton <b>Partager</b> → fais défiler → <b>« Sur l'écran d'accueil »</b>.`,
+    `L'icône du club apparaît : tu ouvres le site comme une vraie application.`
+  ],aideNote('tip',`<b>Astuce :</b> une fois installé, active les <b>notifications</b> (cloche en haut) pour être prévenu des événements et rappels.`))}
+  ${aideSec('📅','S\'inscrire à un événement','Repas, roulage, assemblée générale.',[
+    `Ouvre <b>Calendrier</b> et choisis l'événement.`,
+    `Clique sur <b>S'inscrire</b> et remplis le formulaire.`,
+    `Pour une <b>AG</b> : indique présent ou absent, et donne <b>procuration</b> si absent.`,
+    `Valide : tu reçois une <b>confirmation</b> par mail si tu as mis ton e-mail.`
+  ],aideNote('warn',`<b>Attention :</b> quand le bureau a <b>fermé les inscriptions</b>, le bouton disparaît. Inscris-toi à l'avance.`))}
+  ${aideSec('🔑','Réserver une ouverture du terrain','Pour les responsables d\'ouverture.',[
+    `Ouvre <b>Ouverture</b> : le calendrier des créneaux s'affiche.`,
+    `Choisis un créneau libre et clique dessus.`,
+    `Renseigne ton nom et saisis le <b>code club</b> (donné par le bureau).`,
+    `Valide : tu deviens responsable d'ouverture sur ce créneau.`
+  ],aideNote('tip',`<b>Bon à savoir :</b> tes ouvertures sont archivées par le bureau pour le suivi des engagements. En cas d'empêchement, préviens le bureau.`))}
+  ${aideSec('🔧','S\'inscrire à une journée travaux','Entretien du terrain, chantiers.',[
+    `Ouvre <b>Travaux</b> et choisis la date.`,
+    `Clique sur <b>Je participe</b> et indique si tu restes pour le casse-croûte.`,
+    `C'est noté, ta présence est comptabilisée.`
+  ])}
+  ${aideSec('🙋','Devenir bénévole sur l\'épreuve','Les postes à pourvoir pendant la course.',[
+    `Ouvre <b>Bénévoles</b> : le tableau des postes montre les places libres.`,
+    `Clique sur un poste : une fenêtre montre les créneaux (matin/après-midi) et les places restantes.`,
+    `Clique <b>M'inscrire à ce poste</b>, coche tes créneaux dispo, valide.`,
+    `Le bureau valide ; tu reçois un <b>mail de confirmation</b>.`
+  ],aideNote('warn',`<b>À noter :</b> un créneau <b>« Fermé »</b> n'a pas besoin de bénévole. Et une fois inscrit, <b>merci de tenir ton engagement</b> le jour J !`))}
+  ${aideSec('💬','Participer à la vie du club','Ton avis compte.',[
+    `<b>Sondages :</b> réponds en un clic (un vote par appareil).`,
+    `<b>La parole aux membres :</b> propose tes idées.`,
+    `<b>Résultats, photos, actus, boutique :</b> suis le club et commande les produits.`
+  ])}`;
+}
+function aideBureauHTML(){
+  return `
+  ${aideNote('warn',`<b>Réservé au bureau.</b> Ne diffuse pas ces infos aux membres. Garde ton mot de passe confidentiel : tout ce qui est « admin » n'apparaît qu'une fois connecté.`)}
+  ${aideSec('🔑','Se connecter à l\'espace bureau','Première étape avant toute gestion.',[
+    `Menu → <b>Accès bureau</b> (icône de connexion).`,
+    `Saisis e-mail + mot de passe, puis <b>Se connecter</b>.`,
+    `Les boutons ✎ / ✕ et les sections admin apparaissent sur chaque page.`,
+    `Pour sortir : <b>Accès bureau</b> → <b>Se déconnecter</b>.`
+  ],aideNote('tip',`<b>Astuce :</b> l'<b>Espace bureau</b> (menu Admin) est ton tableau de bord central.`))}
+  ${aideSec('📊','Le tableau de bord','Vue d\'ensemble + raccourcis.',[
+    `En haut : indicateurs (prochaine ouverture, événement, inscrits, visites, abonnés).`,
+    `Les <b>onglets</b> regroupent les actions par thème.`,
+    `Les <b>Actions rapides</b> créent directement : événement, article, résultats, album, notif, sondage.`,
+    `<b>Gérer les pages du site</b> t'envoie sur chaque rubrique avec sa gestion.`
+  ])}
+  ${aideSec('📅','Événements & inscriptions','Repas, roulage, AG.',[
+    `Actions rapides → <b>Nouvel événement</b> (titre, date, lieu, type).`,
+    `Active les inscriptions, personnalise les champs, active les <b>procurations</b> pour une AG.`,
+    `Sur <b>Calendrier & inscriptions</b> : filtre, supprime, ou <b>Voir les inscriptions</b>.`,
+    `<b>Exporter / imprimer</b> et <b>mail groupé aux présents</b>.`
+  ],aideNote('warn',`<b>Clôturer :</b> coche <b>« Fermer les inscriptions »</b> sur l'événement.`))}
+  ${aideSec('🔧','Ouvertures & travaux','Permanences et chantiers.',[
+    `Définis le <b>code club</b> (laisse vide pour désactiver la vérification).`,
+    `<b>Inscris quelqu'un manuellement</b> sur un créneau, sans code club.`,
+    `Marque un jour <b>« terrain fermé »</b>.`,
+    `Consulte les <b>archives</b> par date et par pilote (suivi du contrat pilote).`,
+    `Pour les <b>travaux</b> : crée les dates, suis les présences par bénévole.`
+  ])}
+  ${aideSec('🙋','Gérer les bénévoles','Postes, créneaux, besoins, validation.',[
+    `Espace bureau → <b>Bénévoles (gestion)</b> : une fenêtre ouvre tout le pilotage.`,
+    `<b>Postes & besoins :</b> crée les postes et définis le besoin <b>par poste et par créneau</b>. Mets <b>0</b> pour <b>fermer</b> un créneau.`,
+    `<b>Créneaux :</b> gère la liste (Samedi matin, etc.).`,
+    `Valide les inscrits en attente (<b>✓ Valider</b>) → <b>mail automatique</b> envoyé.`,
+    `<b>Exports :</b> tableau complet + contacts Google.`
+  ])}
+  ${aideSec('📰','Publier des contenus','Faire vivre le site.',[
+    `Articles, résultats (visuel auto), albums (import groupé), partenaires, sondages.`,
+    `Personnalise l'accueil : couverture, logo, liens Prono/Boutique.`,
+    `Règle le compte à rebours et les pages texte (Histoire, Licence, Mentions).`
+  ])}
+  ${aideSec('🔔','Notifications, exports & accès','Communiquer et administrer.',[
+    `<b>Notifications :</b> alerte sur le téléphone des abonnés.`,
+    `<b>Stats :</b> fréquentation, journal des annulations.`,
+    `<b>Accès :</b> ajoute/retire les comptes bureau (Bureau & accès admin).`
+  ])}`;
+}
+async function loadAide(){
+  const cont=$('#aideContent'); if(!cont)return;
+  if(_aideTab==='bureau' && !isAdmin)_aideTab='membre';
+  const tabs=`<div class="aide-tabs">
+    <button class="${_aideTab==='membre'?'active':''}" onclick="setAideTab('membre')">👤 Côté membre</button>
+    ${isAdmin?`<button class="${_aideTab==='bureau'?'active':''}" onclick="setAideTab('bureau')">🔒 Côté bureau</button>`:''}
+  </div>`;
+  cont.innerHTML=tabs+`<div class="aide-body">${_aideTab==='bureau'?aideBureauHTML():aideMembreHTML()}</div>`;
+}
+function setAideTab(t){_aideTab=t;loadAide();}
 
 /* ---- Pages texte ---- */
 async function loadHistoire(){
@@ -4522,6 +4654,7 @@ function adminTab(tab){
         <button class="adm-link" onclick="go('sondages')">🗳️ Sondages</button>
         <button class="adm-link" onclick="go('participer')">💡 Idées des membres</button>
         <button class="adm-link" onclick="go('bureau')">👥 Bureau &amp; accès admin</button>
+        <button class="adm-link" onclick="go('aide')">❓ Aide &amp; tutos (membre + bureau)</button>
       </div>`;
   }
 
