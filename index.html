@@ -1202,7 +1202,7 @@ function go(page,fromPop){
   const el=$('#page-'+page);
   if(el){el.classList.add('active');if(page==='admin')el.style.display='block';}
   $$('.nav-links button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
-  $('#navLinks').classList.remove('open');
+  closeMobileMenu();
   $('#navClub')?.classList.remove('open');
   document.body.classList.remove('menu-open');
   // barre de navigation du bas (mobile)
@@ -1231,12 +1231,29 @@ function openModal(t,h){$('#modalTitle').textContent=t;$('#modalBody').innerHTML
 function openMobileMenu(){
   const nav=$('#navLinks');
   const willOpen=!nav.classList.contains('open');
-  nav.classList.toggle('open',willOpen);
-  document.body.classList.toggle('menu-open',willOpen);
+  if(willOpen){
+    // on sort le menu du <header> (qui a backdrop-filter → casse position:fixed)
+    // et on l'attache au <body> pour qu'il couvre bien tout l'écran
+    if(nav.parentNode && nav.parentNode.tagName!=='BODY'){
+      nav._homeParent=nav.parentNode; nav._homeNext=nav.nextSibling;
+      document.body.appendChild(nav);
+    }
+    nav.classList.add('open');
+    document.body.classList.add('menu-open');
+  }else{
+    closeMobileMenu();
+  }
 }
 function closeMobileMenu(){
   const nav=$('#navLinks');
-  if(nav)nav.classList.remove('open');
+  if(nav){
+    nav.classList.remove('open');
+    // on le remet à sa place d'origine dans le header
+    if(nav._homeParent){
+      try{nav._homeParent.insertBefore(nav,nav._homeNext||null);}catch(_){ }
+      nav._homeParent=null; nav._homeNext=null;
+    }
+  }
   document.body.classList.remove('menu-open');
 }
 /* Menu déroulant "Le club" */
@@ -1253,7 +1270,7 @@ function closeModal(){
   document.querySelector('#modalBg .modal')?.classList.remove('modal-wide');
 }
 function bureauClick(){
-  $('#navLinks').classList.remove('open');
+  closeMobileMenu();
   if(isAdmin){go('admin');}
   else{openAuth();}
 }
