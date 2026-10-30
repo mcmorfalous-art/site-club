@@ -522,7 +522,9 @@ footer{border-top:1px solid var(--line);margin-top:40px;background:var(--surface
   .stat .n{font-size:1.8rem}
   .tiles{grid-template-columns:1fr 1fr}
   .tiles-sm{grid-template-columns:1fr 1fr}
-  .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:var(--bg);border-bottom:1px solid var(--line);padding:14px 12px 18px;gap:2px;max-height:calc(100vh - 64px);overflow-y:auto}
+  .admin-bar{padding:8px 12px;gap:8px;font-size:.8rem;flex-wrap:wrap}
+  .admin-bar .btn{font-size:.78rem;padding:5px 10px}
+  .nav-links{display:none;position:fixed;top:64px;left:0;right:0;bottom:0;flex-direction:column;background:var(--bg);border-top:1px solid var(--line);padding:14px 12px calc(28px + env(safe-area-inset-bottom));gap:2px;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:99}
   .nav-links.open{display:flex}
   /* toutes les entrées du menu : lignes neutres et aérées */
   .nav-links button{width:100%;text-align:left;padding:13px 14px;font-size:1rem!important;font-weight:600!important;color:var(--ink)!important;background:transparent!important;border:none!important;border-radius:10px}
