@@ -1,8 +1,9 @@
 /* MC Les Morfalous — Service Worker
-   Stratégie NETWORK-FIRST : on prend toujours la version en ligne si dispo,
-   le cache ne sert QUE de secours hors-ligne. Évite d'afficher une vieille version figée.
-   Pense à changer CACHE_VERSION à chaque grosse mise à jour. */
-const CACHE_VERSION = 'mcm-v2';
+   Stratégie NETWORK-FIRST. Le HTML (ouverture de l'app / des pages) est TOUJOURS
+   pris au réseau en priorité : le cache ne sert QUE de secours hors-ligne, jamais
+   pour afficher une version figée. Plus besoin de changer le numéro de version à
+   chaque mise à jour — la page ne reste jamais bloquée sur une ancienne version. */
+const CACHE_VERSION = 'mcm-v3';
 const CORE = ['./', './index.html', './icon-192.png', './icon-512.png', './manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -22,6 +23,26 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   // On ne gère que les GET du même site ; le reste (Supabase, etc.) passe direct au réseau.
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+
+  // Est-ce une navigation / une page HTML ? (ouverture de l'app, rechargement…)
+  const isHTML = req.mode === 'navigate' ||
+    (req.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    // HTML : réseau SANS cache navigateur, on garde une copie uniquement pour le hors-ligne.
+    e.respondWith(
+      fetch(req, { cache: 'no-store' })
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_VERSION).then((c) => c.put('./index.html', copy)).catch(()=>{});
+          return res;
+        })
+        .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Autres fichiers (icônes, manifest, images…) : réseau d'abord, cache mis à jour, secours hors-ligne.
   e.respondWith(
     fetch(req)
       .then((res) => {
@@ -29,7 +50,7 @@ self.addEventListener('fetch', (e) => {
         caches.open(CACHE_VERSION).then((c) => c.put(req, copy)).catch(()=>{});
         return res;
       })
-      .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+      .catch(() => caches.match(req))
   );
 });
 
