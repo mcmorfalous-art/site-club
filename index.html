@@ -38,6 +38,17 @@ header{position:sticky;top:0;z-index:100;background:rgba(10,26,36,.92);backdrop-
 .brand{display:flex;align-items:center;gap:12px;font-family:var(--font-disp);font-weight:900;font-size:1.5rem;letter-spacing:.02em;text-transform:uppercase}
 .brand-logo{width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);flex-shrink:0;box-shadow:0 0 0 1px var(--bg),0 0 14px rgba(92,198,232,.25)}
 .nav-links{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap;align-items:center}
+/* Menu ouvert (burger / bouton Menu) : TOUJOURS en colonne plein écran, quelle que soit la largeur */
+.nav-links.open{display:flex!important;flex-direction:column!important;align-items:stretch!important;flex-wrap:nowrap!important;gap:2px;position:fixed;top:0;left:0;right:0;bottom:0;margin:0;background:var(--bg);padding:14px 12px 78px;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:1200}
+.nav-links.open .nav-menu-head{display:flex;width:100%;align-items:center;justify-content:space-between;padding:4px 6px 10px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.nav-links.open .nav-menu-head .nmh-title{margin-right:auto;font-family:var(--font-disp);font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink);font-size:1.1rem}
+.nav-links.open .nav-menu-head .nmh-close{background:var(--surface-2);border:1px solid var(--line);border-radius:50%;width:38px;height:38px;font-size:1.3rem;color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;cursor:pointer}
+.nav-links.open .nav-sec-label{display:block;align-self:stretch;width:100%;text-align:left;font-family:var(--font-disp);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);padding:16px 14px 4px;margin-top:6px;border-top:1px solid var(--line)}
+.nav-links.open .nav-dropdown{width:100%}
+.nav-links.open .nav-dd-toggle{display:none!important}
+.nav-links.open .nav-dd-menu{display:block!important;position:static;min-width:0;box-shadow:none;background:transparent;border:none;margin:0;padding:0}
+.nav-links.open button{width:100%;text-align:left;padding:13px 14px;font-size:1rem!important;font-weight:600!important;color:var(--ink)!important;background:transparent!important;border:none!important;border-radius:10px}
+.nav-links.open .nav-open,.nav-links.open .nav-travaux,.nav-links.open .nav-install,.nav-links.open .nav-notif,.nav-links.open .nav-cta{background:transparent!important;color:var(--ink)!important;font-weight:600!important}
 .nav-links button{font-family:var(--font-disp);font-weight:600;font-size:1.02rem;text-transform:uppercase;letter-spacing:.03em;padding:8px 13px;border-radius:var(--radius);color:var(--ink-dim);transition:color .15s,background .15s}
 .nav-links button:hover{color:var(--ink);background:var(--surface-2)}
 .nav-links button.active{color:var(--accent)}
